@@ -1,277 +1,288 @@
 # Cognito Social Auth Monorepo
 
-A monorepo project to test AWS Cognito authentication with social identity providers (Google, Facebook) and email/password sign-in. This is a three-phase implementation starting with a local baseline app (Phase 0), then adding Cognito authentication (Phase 1), and finally social sign-in (Phase 2).
+Monorepo project for testing AWS Cognito authentication with local users and social identity providers (Google and Facebook), using a React frontend and NestJS backend.
 
-## Project Intent
+## Current Status
 
-Build a realistic, working example of:
-1. **Phase 0**: A full-stack app (React frontend + NestJS backend) with open endpoints, running locally with no authentication.
-2. **Phase 1**: Add AWS Cognito User Pool with email/password sign-up/sign-in, JWT token validation on the backend, and role-based access control (admin/viewer groups).
-3. **Phase 2**: Add Google and Facebook social identity providers to the Cognito setup, allowing users to sign in via these platforms.
+- Phase 0: complete
+- Phase 1: pending
+- Phase 2: pending
 
-The app demonstrates user info display (email, sub, groups, custom attributes), API authorization based on Cognito groups, and token-based backend validation using JWKS.
+Phase 0 already runs locally with open endpoints and no authentication.
+
+## Target Authentication Flow
+
+1. User opens the web app.
+2. Amplify Auth redirects to Cognito Hosted UI.
+3. Cognito signs in the user directly, or hands off to Google/Facebook.
+4. Cognito redirects back to the app and tokens are issued.
+5. The app calls backend APIs with Cognito access token.
+6. Backend validates token signature and claims with Cognito JWKS endpoint.
+7. Backend authorizes access using cognito:groups (admin/viewer).
 
 ## Tech Stack
 
-| Layer | Technology | Version |
-|---|---|---|
-| **Monorepo** | npm workspaces | Built-in |
-| **Frontend** | React 19 + Vite 8 + TypeScript | Latest stable |
-| **Backend** | NestJS 11 + Passport JWT | Latest stable |
-| **Auth (Phase 1+)** | AWS Cognito User Pool + Amplify Auth SDK | - |
-| **Infrastructure (Phase 1+)** | AWS CDK v2 (TypeScript) | Latest stable |
-| **Node Runtime** | Node.js 20 LTS | 20+ |
-
-## Prerequisites
-
-- **Node.js 20 LTS** (check [.nvmrc](.nvmrc) or install via nvm)
-- **npm 10+** (comes with Node 20)
-- **AWS Account** (for Phase 1+; Phase 0 requires no AWS resources)
-- **Git**
+| Layer | Technology |
+|---|---|
+| Monorepo | npm workspaces |
+| Frontend | React 19, Vite 8, TypeScript |
+| Backend | NestJS 11, TypeScript |
+| Auth | AWS Cognito User Pool, Amplify Auth |
+| Token Validation | passport-jwt, jwks-rsa |
+| Runtime | Node.js 20 |
 
 ## Project Structure
 
-```
+```text
 cognito-social-auth/
-├── plan.md                          # Detailed implementation plan
-├── README.md                        # This file
-├── package.json                     # Root monorepo config
-├── tsconfig.base.json               # Shared TypeScript config
-├── .nvmrc                           # Node version lock
-├── .env.example                     # Environment template
-├── .gitignore                       # Git ignore rules
+├── plan.md
+├── README.md
+├── package.json
+├── tsconfig.base.json
+├── .env.example
 └── packages/
-    ├── backend/                     # NestJS API (port 3000)
+    ├── backend/
     │   ├── src/
-    │   │   ├── main.ts              # App bootstrap
-    │   │   ├── app.controller.ts    # API endpoints
-    │   │   ├── app.module.ts        # Module config
-    │   │   └── auth/                # (Phase 1) Auth guards & strategies
-    │   ├── dist/                    # Compiled output
+    │   │   ├── main.ts
+    │   │   ├── app.controller.ts
+    │   │   └── app.module.ts
     │   └── package.json
-    ├── frontend/                    # React + Vite (port 5173)
+    ├── frontend/
     │   ├── src/
-    │   │   ├── main.tsx             # React entry
-    │   │   ├── App.tsx              # Router + layout
-    │   │   ├── pages/               # Home, Profile, Admin pages
-    │   │   ├── services/            # API client
-    │   │   └── App.css              # Styles
-    │   ├── dist/                    # Build output
+    │   │   ├── main.tsx
+    │   │   ├── App.tsx
+    │   │   ├── pages/
+    │   │   └── services/
     │   └── package.json
-    └── infra/                       # (Phase 1) AWS CDK stack
-        ├── lib/
-        │   └── cognito-auth-stack.ts  # User Pool, App Client, Lambda
-        ├── lambda/
-        │   └── pre-token-generation.ts # Token customization
-        └── package.json
+    └── infra/
+        └── (not used in current manual-only plan)
 ```
 
-## Environment Variables
+## Prerequisites
 
-All secrets and configuration go in `.env` files (one per package). See [.env.example](.env.example) for the template.
+- Node.js 20+
+- npm 10+
+- AWS account
+- Google developer account (for Phase 2)
+- Facebook developer account (for Phase 2)
 
-### Phase 0 (Local, no AWS)
+## Local Run (Phase 0)
 
-**Root `.env` (optional for Phase 0):**
-```bash
-API_URL=http://localhost:3000
-```
+1. Install dependencies:
 
-**Backend `.env` (packages/backend/.env):**
-```bash
-NODE_ENV=development
-PORT=3000
-```
-
-**Frontend `.env` (packages/frontend/.env):**
-```bash
-VITE_API_URL=http://localhost:3000
-```
-
-### Phase 1 (Cognito User Pool)
-
-After CDK deployment, update `.env` files with outputs:
-
-**Backend `.env`:**
-```bash
-NODE_ENV=development
-PORT=3000
-COGNITO_USER_POOL_ID=us-east-1_xxxxxxxxx    # From CDK output
-COGNITO_REGION=us-east-1                    # AWS region
-```
-
-**Frontend `.env`:**
-```bash
-VITE_API_URL=http://localhost:3000
-VITE_COGNITO_USER_POOL_ID=us-east-1_xxxxxxxxx   # From CDK output
-VITE_COGNITO_APP_CLIENT_ID=xxxxxxxxxxxxx        # From CDK output
-VITE_COGNITO_REGION=us-east-1                   # AWS region
-```
-
-### Phase 2 (Social Identity Providers)
-
-**Backend `.env` (no additional secrets needed for Phase 2 backend):**
-```bash
-# Same as Phase 1
-COGNITO_USER_POOL_ID=us-east-1_xxxxxxxxx
-COGNITO_REGION=us-east-1
-```
-
-**Frontend `.env`:**
-```bash
-# Same as Phase 1, Amplify handles OAuth automatically
-VITE_API_URL=http://localhost:3000
-VITE_COGNITO_USER_POOL_ID=us-east-1_xxxxxxxxx
-VITE_COGNITO_APP_CLIENT_ID=xxxxxxxxxxxxx
-VITE_COGNITO_REGION=us-east-1
-```
-
-**CDK Context (packages/infra/cdk.context.json or CLI):**
-```json
-{
-  "googleClientId": "xxx.apps.googleusercontent.com",
-  "googleClientSecret": "xxx",
-  "facebookAppId": "xxx",
-  "facebookAppSecret": "xxx"
-}
-```
-
-Or pass via AWS CLI:
-```bash
-cdk deploy -c googleClientId=xxx -c googleClientSecret=xxx ...
-```
-
-## How to Execute
-
-### Phase 0: Local App (No Auth)
-
-**1. Install dependencies:**
 ```bash
 npm install
 ```
 
-**2. Start the backend:**
+2. Start backend:
+
 ```bash
 npm run dev:backend
-# Backend runs on http://localhost:3000
-# Routes: GET /api/health, /api/profile, /api/admin
 ```
 
-**3. In another terminal, start the frontend:**
+3. Start frontend in another terminal:
+
 ```bash
 npm run dev:frontend
-# Frontend runs on http://localhost:5173
-# Navigate to http://localhost:5173 in your browser
 ```
 
-**4. Click buttons to test endpoints:**
-- "View Profile Endpoint" → calls GET /api/profile
-- "View Admin Endpoint" → calls GET /api/admin
+4. Open the app:
 
-**5. Build both apps:**
+- http://localhost:5173
+
+5. Verify API endpoints:
+
+- http://localhost:3000/api/health
+- http://localhost:3000/api/profile
+- http://localhost:3000/api/admin
+
+## Manual AWS Setup (Phase 1)
+
+All AWS resources in this project are created manually in AWS Console. No CDK. No AWS CLI.
+
+### 1) Create Cognito User Pool
+
+AWS Console path:
+- AWS Console -> Amazon Cognito -> User pools -> Create user pool
+
+Recommended settings:
+- Sign-in option: Email
+- Self sign-up: enabled
+- Email verification: code
+- Password policy: minimum 8 with complexity
+- MFA: off for local testing
+
+Save these values:
+- COGNITO_REGION
+- COGNITO_USER_POOL_ID
+
+### 2) Create App Client (Public SPA)
+
+AWS Console path:
+- User pool -> App integration -> App clients -> Create app client
+
+Recommended settings:
+- Public client (no secret)
+- OAuth flow: Authorization code grant with PKCE
+- Callback URL: http://localhost:5173/callback
+- Sign-out URL: http://localhost:5173/
+- Scopes: openid, email, profile
+
+Save this value:
+- VITE_COGNITO_APP_CLIENT_ID
+
+### 3) Configure Hosted UI Domain
+
+AWS Console path:
+- User pool -> App integration -> Domain
+
+Set a prefix like:
+- csa-dev-<unique-suffix>
+
+Save this value:
+- VITE_COGNITO_DOMAIN (host only, without https)
+
+### 4) Create Groups
+
+AWS Console path:
+- User pool -> User management -> Groups
+
+Create:
+- admin
+- viewer
+
+### 5) Create Test Users
+
+AWS Console path:
+- User pool -> User management -> Users -> Create user
+
+Create and assign:
+- localadmin@test.com -> admin
+- localviewer@test.com -> viewer
+
+## Manual Social Setup (Phase 2)
+
+### 1) Create Google OAuth App
+
+Google Cloud Console path:
+- APIs & Services -> Credentials -> Create OAuth client (Web application)
+
+Redirect URI:
+- https://<cognito-domain>/oauth2/idpresponse
+
+Save:
+- Google Client ID
+- Google Client Secret
+
+### 2) Create Facebook App
+
+Facebook Developers path:
+- My Apps -> Create App -> Add Facebook Login
+
+Redirect URI:
+- https://<cognito-domain>/oauth2/idpresponse
+
+Save:
+- Facebook App ID
+- Facebook App Secret
+
+### 3) Add Social Providers in Cognito
+
+AWS Console path:
+- User pool -> Sign-in experience -> Social and external providers
+
+Configure:
+- Google (client id/secret)
+- Facebook (app id/secret)
+- Attribute mapping: email and username/name
+
+### 4) Enable Providers for App Client
+
+AWS Console path:
+- User pool -> App integration -> Managed login / Hosted UI settings
+
+Enable providers:
+- Cognito User Pool
+- Google
+- Facebook
+
+### 5) Assign Group to Social Users
+
+After first social login auto-creates users:
+- User pool -> Users
+- Assign admin or viewer group manually
+
+## Environment Variables
+
+Backend file: packages/backend/.env
+
+```env
+NODE_ENV=development
+PORT=3000
+COGNITO_REGION=<aws-region>
+COGNITO_USER_POOL_ID=<user-pool-id>
+```
+
+Frontend file: packages/frontend/.env
+
+```env
+VITE_API_URL=http://localhost:3000
+VITE_COGNITO_REGION=<aws-region>
+VITE_COGNITO_USER_POOL_ID=<user-pool-id>
+VITE_COGNITO_APP_CLIENT_ID=<app-client-id>
+VITE_COGNITO_DOMAIN=<hosted-ui-domain-without-https>
+```
+
+## API Authorization Expectations
+
+- /api/health: public
+- /api/profile: requires valid Cognito access token
+- /api/admin: requires valid token and admin group
+
+Backend must:
+- validate JWT using Cognito JWKS
+- validate issuer and token type
+- enforce authorization with cognito:groups
+
+## Verification Checklist
+
+Phase 0:
+- App runs locally
+- health/profile/admin endpoints respond
+
+Phase 1:
+- Hosted UI login works
+- App receives tokens after callback
+- Profile endpoint works with token
+- Admin endpoint returns:
+  - 200 for admin
+  - 403 for viewer
+
+Phase 2:
+- Google login works end-to-end
+- Facebook login works end-to-end
+- Social users obey same group authorization rules
+
+## Commands
+
+From repository root:
+
 ```bash
+npm install
+npm run dev:backend
+npm run dev:frontend
 npm run build
-# Outputs: packages/backend/dist and packages/frontend/dist
 ```
 
-### Phase 1: Add Cognito User Pool (Coming Next)
+## Scope
 
-```bash
-# 1. Bootstrap CDK (first time only in your account/region)
-cd packages/infra
-npx cdk bootstrap
+In scope:
+- Manual Cognito setup in AWS Console
+- Manual Google/Facebook provider setup
+- Frontend Hosted UI auth flow
+- Backend token validation via JWKS
+- Group-based authorization
 
-# 2. Deploy Cognito infrastructure
-npx cdk deploy
-
-# 3. Note the CDK outputs and update .env files:
-#    - COGNITO_USER_POOL_ID
-#    - COGNITO_APP_CLIENT_ID
-#    - COGNITO_REGION
-
-# 4. Create test users via AWS CLI (after deployment)
-aws cognito-idp admin-create-user \
-  --user-pool-id <pool-id> \
-  --username admin@test.com \
-  --user-attributes Name=email,Value=admin@test.com
-
-# 5. Restart backend and frontend with updated .env files
-npm run dev:backend
-npm run dev:frontend
-
-# 6. Sign up/sign in and test protected endpoints
-```
-
-### Phase 2: Add Google & Facebook (Coming Later)
-
-```bash
-# 1. Create Google OAuth 2.0 credentials in Google Cloud Console
-# 2. Create Facebook OAuth credentials in Facebook Developers
-# 3. Update CDK stack with OAuth provider configs
-# 4. Deploy CDK again:
-cd packages/infra
-npx cdk deploy
-
-# 5. Restart frontend to see social sign-in buttons
-```
-
-## Troubleshooting
-
-### Backend won't start
-- Ensure port 3000 is not in use: `netstat -ano | findstr :3000`
-- Check Node version: `node -v` (should be 20+)
-- Rebuild: `cd packages/backend && npm run build`
-
-### Frontend build fails
-- Clear cache: `rm -rf packages/frontend/dist packages/frontend/node_modules/.vite`
-- Reinstall: `npm install -w @csa/frontend`
-
-### Backend endpoints return 404
-- Ensure NestJS has started (watch for "[NestFactory] Starting Nest application..." in logs)
-- Check port 3000 is correct in frontend `.env` (VITE_API_URL)
-
-### CORS errors in browser
-- Backend CORS is set to allow `http://localhost:5173`
-- If you changed frontend port, update [packages/backend/src/main.ts](packages/backend/src/main.ts)
-
-## Available Commands
-
-### From root:
-```bash
-npm run dev:backend        # Start backend in watch mode
-npm run dev:frontend       # Start frontend dev server
-npm run build              # Build both packages
-npm install                # Install all workspace dependencies
-```
-
-### Backend only (cd packages/backend):
-```bash
-npm run start:dev          # Watch mode
-npm run start              # Production
-npm run build              # Compile
-npm run test               # Run tests
-```
-
-### Frontend only (cd packages/frontend):
-```bash
-npm run dev                # Dev server
-npm run build              # Build for production
-npm run preview            # Preview production build
-```
-
-## Documentation
-
-- **[plan.md](plan.md)** — Full three-phase implementation plan with step-by-step details
-- **Phase 0 verification checklist** in [plan.md](plan.md#verification-checklist)
-
-## Next Steps
-
-1. ✅ **Phase 0**: Local app running locally with open endpoints
-2. 🔄 **Phase 1**: Deploy Cognito User Pool, add JWT validation and role-based guards
-3. 📋 **Phase 2**: Add Google & Facebook social sign-in
-
-See [plan.md](plan.md) for the complete roadmap.
-
-## License
-
-MIT
+Out of scope:
+- CDK/Terraform/CLI automation
+- Production hardening and deployment pipeline

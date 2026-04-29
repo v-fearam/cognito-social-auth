@@ -1,0 +1,81 @@
+.app-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.topbar nav {
+  display: flex;
+  gap: 12px;
+}
+
+.topbar a {
+  text-decoration: none;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.topbar a:hover {
+  background: #f3f4f6;
+}
+
+.content {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+  background: #f9fafb;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.actions button,
+.actions a {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 8px;
+  padding: 8px 12px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.actions button:hover,
+.actions a:hover {
+  background: #f3f4f6;
+}
+
+pre {
+  margin-top: 12px;
+  background: #111827;
+  color: #f9fafb;
+  border-radius: 8px;
+  padding: 12px;
+  overflow: auto;
+}

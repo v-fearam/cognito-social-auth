@@ -6,7 +6,7 @@ Monorepo for testing AWS Cognito authentication and authorization with a React f
 
 - Phase 0 (local baseline): complete
 - Phase 1 (Cognito Hosted UI + protected APIs): complete
-- Phase 2 (social providers: Google/Facebook): pending
+- Phase 2 (social providers: Google/Facebook): in progress
 
 What is implemented now:
 1. Frontend login/logout with Cognito Hosted UI (OIDC Authorization Code + PKCE).
@@ -14,7 +14,9 @@ What is implemented now:
 3. Frontend sends bearer access token to protected backend endpoints.
 4. Backend validates Cognito access tokens using Cognito JWKS.
 5. Backend enforces group-based authorization (`admin`) on `/api/admin`.
-6. UI refactored into reusable React components with consistent naming.
+6. Backend startup explicitly loads `packages/backend/.env`.
+7. Google social provider login is working end-to-end.
+8. UI refactored into reusable React components with consistent naming.
 
 ## Target Authentication Flow
 
@@ -133,9 +135,9 @@ Implemented and validated:
 - [x] Frontend and backend build succeed
 
 Pending (Phase 2):
-- [ ] Google login end-to-end
+- [x] Google login end-to-end
 - [ ] Facebook login end-to-end
-- [ ] Social user group assignment workflow
+- [x] Social user group assignment workflow validated for Google users
 
 ## Scope
 

@@ -2,9 +2,9 @@
 
 ## Version
 
-- Version: 0.4.0
+- Version: 0.4.1
 - Date: 2026-04-30
-- Status: Phase 1 complete in app code and local validation; Phase 2 pending
+- Status: Phase 1 complete; Phase 2 in progress with Google provider validated
 
 ## TL;DR
 
@@ -23,10 +23,10 @@ Current flow:
 |---|---|---:|---|---|
 | Phase 0 - Local app (no auth) | Done | 100% | 2026-04-30 | Baseline complete |
 | Phase 1 - Cognito email/password | Done | 100% | 2026-04-30 | Hosted UI + callback + backend guards complete |
-| Phase 2 - Social IdPs (Google/Facebook) | Not started | 0% | 2026-04-30 | Pending provider setup in portals |
+| Phase 2 - Social IdPs (Google/Facebook) | In progress | 50% | 2026-04-30 | Google complete, Facebook pending |
 | Frontend (React/Vite) | Done for Phase 1 | 85% | 2026-04-30 | OIDC integration + component refactor complete |
-| Backend (NestJS API) | Done for Phase 1 | 85% | 2026-04-30 | Access token verification + admin guard complete |
-| Testing and validation | Core checks done | 75% | 2026-04-30 | Build and local flow validated; social scenarios pending |
+| Backend (NestJS API) | Done for Phase 1 | 90% | 2026-04-30 | Access token verification + admin guard + dotenv loading complete |
+| Testing and validation | Core checks done | 85% | 2026-04-30 | Google flow validated; Facebook scenarios pending |
 
 ## Implemented Architecture
 
@@ -74,7 +74,8 @@ cognito-social-auth/
 1. Implemented Cognito access token verification with `jose` + remote JWKS.
 2. Added `CognitoAuthGuard` for bearer token validation.
 3. Added `AdminGroupGuard` enforcing `COGNITO_ADMIN_GROUP` (default `admin`).
-4. Protected routes:
+4. Added explicit `.env` loading in backend startup for reliable runtime config.
+5. Protected routes:
 - `/api/health` public
 - `/api/profile` authenticated
 - `/api/admin` authenticated + admin group
@@ -100,11 +101,11 @@ Frontend (`packages/frontend/.env`):
 
 ## Phase 2 Plan (Next)
 
-1. Configure Google social provider and test login.
-2. Configure Facebook social provider and test login.
-3. Enable providers in the Cognito app client managed login config.
-4. Validate first-login user creation and group assignment flow.
-5. Verify `/api/admin` returns 200 for admin users and 403 otherwise.
+1. Configure Facebook social provider and test login.
+2. Enable Facebook provider in Cognito managed login app client config.
+3. Validate first-login Facebook user creation and group assignment flow.
+4. Verify `/api/admin` authorization behavior for Facebook users.
+5. Finalize social-provider operational runbook in docs.
 
 ## Validation Checklist
 
@@ -114,11 +115,12 @@ Completed:
 - [x] Protected API calls include bearer token
 - [x] Backend validates Cognito access tokens
 - [x] Admin group authorization in backend
+- [x] Google social sign-in end-to-end
+- [x] Google user group-based authorization behavior validated
 
 Pending:
-- [ ] End-to-end Google sign-in
 - [ ] End-to-end Facebook sign-in
-- [ ] Social user role/group operational checklist
+- [ ] Facebook user role/group operational checklist
 
 ## Out of Scope (Current Iteration)
 

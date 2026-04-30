@@ -1,4 +1,18 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
+import { AdminGroupGuard } from './auth/admin-group.guard';
+import { CognitoAuthGuard } from './auth/cognito-auth.guard';
+
+type CognitoRequest = Request & {
+  user?: {
+    sub?: string;
+    email?: string;
+    username?: string;
+    client_id?: string;
+    scope?: string;
+    'cognito:groups'?: string[];
+  };
+};
 
 @Controller()
 export class AppController {
@@ -7,21 +21,27 @@ export class AppController {
     return { status: 'ok' };
   }
 
+  @UseGuards(CognitoAuthGuard)
   @Get('profile')
-  profile() {
+  profile(@Req() request: CognitoRequest) {
+    const user = request.user;
+
     return {
-      sub: 'mock-sub-123',
-      email: 'user@example.com',
-      groups: ['viewer'],
-      tier: 'free',
-      message: 'This is the profile endpoint (no auth yet)',
+      sub: user?.sub,
+      email: user?.email,
+      username: user?.username,
+      groups: user?.['cognito:groups'] ?? [],
+      client_id: user?.client_id,
+      scope: user?.scope,
+      message: 'Valid Cognito access token',
     };
   }
 
+  @UseGuards(CognitoAuthGuard, AdminGroupGuard)
   @Get('admin')
   admin() {
     return {
-      message: 'This is the admin endpoint (no auth yet)',
+      message: 'Admin access granted',
       secret: 'admin-dashboard-data',
     };
   }

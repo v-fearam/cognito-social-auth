@@ -4,9 +4,9 @@
 
 body {
   margin: 0;
-  font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif;
-  background: #f3f4f6;
-  color: #111827;
+  font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, sans-serif;
+  background: #eff2ff;
+  color: #2b335f;
 }
 
 #root {

@@ -7,7 +7,7 @@ Monorepo for testing AWS Cognito authentication and authorization with a React f
 - Phase 0 (local baseline): complete
 - Phase 1 (Cognito Hosted UI + protected APIs): complete
 - Phase 2 (social providers: Google/Facebook): complete ✅
-- Task 3 app-side support (viewer path + custom tier claim surfacing): partial ✅
+- Task 3 (groups + custom:tier + Pre Token Generation Lambda): complete ✅
 
 What is implemented now:
 1. Frontend login/logout with Cognito Hosted UI (OIDC Authorization Code + PKCE).
@@ -153,8 +153,11 @@ Task 3 completion (manual Cognito work):
 - [x] Confirm `custom:tier` claim appears in ID and access tokens (validated via jwt.io)
 - [x] Verify backend `/api/viewer` endpoint receives tier claim (200 OK response with tier data)
 - [x] Verify frontend displays tier claim in SummaryCards component (UI shows tier value)
-- [ ] Attach a Pre Token Generation Lambda to inject the tier claim into tokens
-- [ ] Validate viewer access and tier claim with real Cognito-issued tokens
+
+Current verified trigger config:
+- Lambda trigger type: `Pre token generation`
+- Event version: `V3_0`
+- Attached Lambda: configured and active in Cognito user pool
 
 ## Scope
 

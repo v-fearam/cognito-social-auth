@@ -16,7 +16,7 @@ This document is broader than the current repository scope. The current repo sta
 - Task 1 (Create Cognito User Pool): ✅ COMPLETE  
 - Task 2 (Configure Cognito app client & resource server): ✅ COMPLETE
 
-**AWS source environment (Tasks 1-2) is complete and production-ready.** Ready for Phase 3 Azure migration setup.
+**AWS source environment (Tasks 1-3) is complete and production-ready.** Ready for Phase 3 Azure migration setup.
 
 Engineer sets up both an AWS Cognito source environment and an Azure External ID target environment, then runs through the migration described in the article to validate every step works as documented.
 

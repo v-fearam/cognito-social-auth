@@ -2,9 +2,9 @@
 
 ## Version
 
-- Version: 0.5.2
+- Version: 0.5.3
 - Date: 2026-05-04
-- Status: Task 1 & 2 complete; Phase 2 complete; Task 3 app-side support added; manual Cognito Task 3 setup pending; Unit tests: 47 tests
+- Status: Tasks 1-3 complete; Phase 2 complete; custom:tier and Pre Token Generation Lambda configured and verified; Unit tests: 47 tests
 
 ## TL;DR
 
@@ -144,56 +144,24 @@ Backend (`packages/backend/.env`):
 ## Next Steps: Task 3 Execution & Phase 3 Readiness
 
 ### Immediate
-1. Add the real `custom:tier` attribute in Cognito and backfill it for test users.
-2. Attach the Pre Token Generation Lambda so the app-side tier support receives a real claim.
-3. Validate that tokens include tier and call `/api/viewer` and `/api/admin` with real Cognito-issued tokens.
+1. Task 3 is complete and verified in Cognito (`custom:tier` in ID and access tokens).
+2. Keep Lambda source in repo as backup under `packages/backend/src/auth/cognito-pretoken-lambda/`.
+3. Proceed with Phase 3 (Azure External ID migration track).
 
 ### Task 3 Execution Plan
 
-Goal: make the AWS source environment match the article's richer migration scenario by adding explicit group coverage, a custom user attribute, and token enrichment via Pre Token Generation.
+Task 3 execution is complete.
 
-1. Prepare Cognito changes
-- Verify the target User Pool is still `us-east-2_EZsrSxHBb`.
-- Decide the canonical test matrix:
-    - Google user -> `admin`
-    - Facebook user -> `viewer`
-    - optional local user -> fallback validation path
-- Confirm the attribute name remains `custom:tier` and define allowed values such as `free`, `pro`, and `enterprise`.
-
-2. Create missing groups in Cognito
-- Confirm `admin` and `viewer` exist in the Cognito User Pool.
-- Confirm at least one tested user is assigned to each group.
-- Document precedence for `/api/admin` authorization behavior.
-
-3. Add the custom user attribute
-- Add mutable string attribute `custom:tier` to the User Pool schema.
-- Backfill `custom:tier` for each migration test user.
-- Record the chosen values in the migration notes so they can later be mapped into Entra extension attributes.
-
-4. Create the Pre Token Generation Lambda
-- Create a Lambda function with permission to be invoked by Cognito.
-- Implement Pre Token Generation logic that reads the user's `custom:tier` and injects it into token claims.
-- Attach the Lambda as the User Pool's Pre Token Generation trigger.
-- Keep the claim name stable and document whether it lands in the ID token, access token, or both.
-
-5. Validate token output end-to-end
-- Sign in with the Google admin user and verify:
-    - `cognito:groups` contains `admin`
-    - token includes the tier claim derived from `custom:tier`
-- Sign in with the Facebook viewer user and verify:
-    - `cognito:groups` contains `viewer`
-    - admin API access is denied as expected
-    - token includes the tier claim derived from `custom:tier`
-
-6. Repo status for Task 3 support
-- App-side support is already implemented for a read-only viewer route and tier claim rendering.
-- No additional backend or frontend code is required unless Cognito emits a different claim shape.
-- If Cognito uses a different custom claim key, update the typed payload and UI mapping to match it.
-
-7. Update tests and docs after execution
-- Add or update backend unit tests only if backend behavior changes.
-- Update [README.md](c:/repos/cognito-social-auth/README.md), [plan.md](c:/repos/cognito-social-auth/plan.md), and [engineering-tasks-happy-path 1.md](c:/repos/cognito-social-auth/packages/docs/engineering-tasks-happy-path%201.md) with final status.
-- Capture the exact Cognito console settings and Lambda event shape used for future Azure mapping.
+Final validated configuration:
+1. `admin` and `viewer` groups exist and are assigned to test users.
+2. `custom:tier` exists in Cognito and is populated.
+3. Pre Token Generation Lambda is attached and active.
+4. Trigger event version is configured as `V3_0`.
+5. `custom:tier` is present in both ID and access tokens.
+6. App behavior is validated:
+- `/api/viewer` returns 200 for viewer user
+- `/api/admin` returns 403 for viewer user
+- frontend summary cards display tier from token claim
 
 ### Task 3 Done Criteria
 - `viewer` group exists and is assigned to at least one tested user.
@@ -239,8 +207,7 @@ Completed:
 - [x] Business logic simulation returned by backend and shown in frontend
 
 Pending:
-- [ ] Real Cognito `custom:tier` attribute and Pre Token Generation Lambda
-- [ ] Real-token validation of `/api/viewer` and tier rendering
+- [ ] Phase 3 Azure External ID environment setup
 
 ## Out of Scope (Current Iteration)
 

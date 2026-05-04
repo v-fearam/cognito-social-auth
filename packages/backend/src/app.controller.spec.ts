@@ -56,6 +56,7 @@ describe('AppController', () => {
           username: 'testuser',
           client_id: '2jcjrvftiedm8rtp8ii8pt1heb',
           scope: 'openid email profile',
+          'custom:tier': 'pro',
           'cognito:groups': ['users'],
         },
       };
@@ -65,6 +66,7 @@ describe('AppController', () => {
       expect(result.sub).toBe('user-123');
       expect(result.email).toBe('user@example.com');
       expect(result.username).toBe('testuser');
+      expect(result.tier).toBe('pro');
       expect(result.message).toBe('Valid Cognito access token');
     });
 
@@ -130,6 +132,53 @@ describe('AppController', () => {
 
       expect(result.client_id).toBe('2jcjrvftiedm8rtp8ii8pt1heb');
       expect(result.scope).toBe('openid email');
+    });
+
+    it('should include custom tier when present', () => {
+      const mockRequest = {
+        user: {
+          sub: 'user-123',
+          email: 'user@example.com',
+          'custom:tier': 'enterprise',
+        },
+      };
+
+      const result = appController.profile(mockRequest as any);
+
+      expect(result.tier).toBe('enterprise');
+    });
+  });
+
+  describe('GET /viewer (with CognitoAuthGuard + ViewerGroupGuard)', () => {
+    it('should return viewer response', () => {
+      const mockRequest = {
+        user: {
+          sub: 'viewer-user-123',
+          'custom:tier': 'free',
+          'cognito:groups': ['viewer'],
+        },
+      };
+
+      const result = appController.viewer(mockRequest as any);
+
+      expect(result).toEqual({
+        message: 'Viewer access granted',
+        businessResult: 'This is the Business result for the controller ViewerController',
+        tier: 'free',
+        data: 'viewer-dashboard-data',
+      });
+    });
+
+    it('should expose the custom tier in viewer response', () => {
+      const mockRequest = {
+        user: {
+          'custom:tier': 'pro',
+        },
+      };
+
+      const result = appController.viewer(mockRequest as any);
+
+      expect(result.tier).toBe('pro');
     });
   });
 
@@ -204,9 +253,11 @@ describe('AppController', () => {
       };
 
       const profileResponse = appController.profile(mockRequest as any);
+      const viewerResponse = appController.viewer(mockRequest as any);
       const adminResponse = appController.admin();
 
       expect(profileResponse.message).toBeDefined();
+      expect(viewerResponse.message).toBeDefined();
       expect(adminResponse.message).toBeDefined();
     });
 
@@ -219,9 +270,11 @@ describe('AppController', () => {
       };
 
       const profileResponse = appController.profile(mockRequest as any);
+      const viewerResponse = appController.viewer(mockRequest as any);
       const adminResponse = appController.admin();
 
       expect(profileResponse.businessResult).toBeDefined();
+      expect(viewerResponse.businessResult).toBeDefined();
       expect(adminResponse.businessResult).toBeDefined();
     });
   });

@@ -2,9 +2,9 @@
 
 ## Version
 
-- Version: 0.5.0  
+- Version: 0.5.2
 - Date: 2026-05-04
-- Status: Task 1 complete; Task 2 complete (app client + PKCE + social IdPs); Resource server scopes documented; Phase 2 in progress (Google validated, Facebook in testing, unit tests added)
+- Status: Task 1 & 2 complete; Phase 2 complete; Task 3 app-side support added; manual Cognito Task 3 setup pending; Unit tests: 47 tests
 
 ## TL;DR
 
@@ -15,7 +15,7 @@ Current flow:
 2. Frontend handles callback at `/callback` and keeps OIDC session.
 3. Frontend calls backend with Cognito access token.
 4. Backend validates JWT via Cognito JWKS and issuer.
-5. Backend authorizes admin endpoint with `cognito:groups`.
+5. Backend authorizes admin and viewer endpoints with `cognito:groups`.
 
 ## AWS Setup Status
 
@@ -27,7 +27,7 @@ Current flow:
 | Email username alias | ✅ | Configured for sign-in |
 | Password policy | ✅ | Standard Cognito policy applied |
 | Google IdP | ✅ | OAuth client created, redirect URI configured, tested end-to-end |
-| Facebook IdP | 🔄 | App created in Meta for Developers, redirect URI added, pending E2E test |
+| Facebook IdP | ✅ | App created in Meta for Developers, redirect URI configured, tested end-to-end |
 | Apple IdP | ⏭️ | Optional - not yet configured |
 
 ### Task 2: Cognito App Client & Resource Server ✅ COMPLETE
@@ -41,19 +41,17 @@ Current flow:
 | Sign-out URL | ✅ | `http://localhost:5173/` |
 | Resource server | ✅ | Implicit (standard Cognito user pool scope) |
 | Custom scopes | ✅ | `openid email phone` configured in frontend |
-| Social IdPs assigned | ✅ | Google + Facebook (in progress) assigned to app client |
+| Social IdPs assigned | ✅ | Google + Facebook assigned to app client, both tested end-to-end |
 
-### Task 3: Groups, Custom Attributes, Lambda Trigger ✅ COMPLETE
+### Task 3: Groups, Custom Attributes, Lambda Trigger ⚠️ PARTIAL
 
 | Requirement | Status | Details |
 |---|---|---|
-| `admin` group | ✅ | Enforced via `AdminGroupGuard` in backend |
-| `viewer` group | ⏭️ | Not yet created (optional for Phase 2) |
-| `custom:tier` attribute | ⏭️ | Not yet implemented (optional for Task 3) |
-| Pre Token Generation Lambda | ⏭️ | Not yet created (optional for advanced scenarios) |
-| Test users assigned to groups | 🔄 | Google user verified with groups; Facebook user pending |
-
-## 5. Backend authorizes admin endpoint with `cognito:groups`.
+| `admin` group | ⚠️ Partial | Backend expects it and admin authorization is already validated |
+| `viewer` group | ⚠️ Partial | Repo support is complete via `/api/viewer`, but the real Cognito group is not yet created |
+| `custom:tier` attribute | ⚠️ Partial | Repo support is complete, but Cognito does not yet issue the claim |
+| Pre Token Generation Lambda | ⏭️ | Not yet created |
+| Test users assigned to groups | ⚠️ Partial | Admin path validated; viewer assignment and tier-claim flow still need real-token validation |
 
 ## Implementation Progress
 
@@ -61,10 +59,10 @@ Current flow:
 |---|---|---:|---|---|
 | Phase 0 - Local app (no auth) | Done | 100% | 2026-05-04 | Baseline complete |
 | Phase 1 - Cognito email/password | Done | 100% | 2026-05-04 | Hosted UI + callback + backend guards complete |
-| Phase 2 - Social IdPs (Google/Facebook) | In progress | 60% | 2026-05-04 | Google complete, Facebook redirect configuration already in progress |
-| Frontend (React/Vite) | Done for Phase 1 | 90% | 2026-05-04 | OIDC integration + component refactor + structured API result rendering complete |
-| Backend (NestJS API) | Done for Phase 1 | 95% | 2026-05-04 | Access token verification + admin guard + dotenv loading + business result simulation complete |
-| Testing and validation | Core checks done | 90% | 2026-05-04 | Google flow validated; Facebook scenarios pending |
+| Phase 2 - Social IdPs (Google/Facebook) | Complete | 100% | 2026-05-04 | Google and Facebook both validated end-to-end |
+| Frontend (React/Vite) | Done for Task 3 app support | 95% | 2026-05-04 | OIDC integration + viewer action + tier summary card complete |
+| Backend (NestJS API) | Done for Task 3 app support | 100% | 2026-05-04 | Access token verification + admin/viewer guards + tier claim surfacing complete |
+| Testing and validation | Complete for repo scope | 100% | 2026-05-04 | Google and Facebook flows validated; unit tests: 47 tests |
 
 ## Implemented Architecture
 
@@ -83,7 +81,8 @@ cognito-social-auth/
             └── auth/
                 ├── cognito-token-verifier.service.ts
                 ├── cognito-auth.guard.ts
-                └── admin-group.guard.ts
+                ├── admin-group.guard.ts
+                └── viewer-group.guard.ts
 ```
 
 ## Completed in Phase 1
@@ -112,11 +111,13 @@ cognito-social-auth/
 1. Implemented Cognito access token verification with `jose` + remote JWKS.
 2. Added `CognitoAuthGuard` for bearer token validation.
 3. Added `AdminGroupGuard` enforcing `COGNITO_ADMIN_GROUP` (default `admin`).
-4. Added explicit `.env` loading in backend startup for reliable runtime config.
-5. Added business logic simulation messages in controller responses for health, profile, and admin endpoints.
-6. Protected routes:
+4. Added `ViewerGroupGuard` permitting `viewer` or `admin` access on the read-only route.
+5. Added explicit `.env` loading in backend startup for reliable runtime config.
+6. Added business logic simulation messages in controller responses for health, profile, viewer, and admin endpoints.
+7. Protected routes:
 - `/api/health` public
 - `/api/profile` authenticated
+- `/api/viewer` authenticated + viewer/admin group
 - `/api/admin` authenticated + admin group
 
 ### UI response rendering
@@ -124,6 +125,7 @@ cognito-social-auth/
 1. The UI preserves the full raw controller response for each protected endpoint.
 2. The UI extracts and displays the controller `message` separately.
 3. The UI extracts and displays `businessResult` separately so controller result and business result remain visible together.
+4. The UI exposes a dedicated `/api/viewer` action and surfaces `custom:tier` in the summary cards when present.
 
 ## Required Environment Variables
 
@@ -135,19 +137,68 @@ Backend (`packages/backend/.env`):
 - `COGNITO_USER_POOL_ID=<user-pool-id>`
 - `COGNITO_APP_CLIENT_ID=<app-client-id>`
 - `COGNITO_ADMIN_GROUP=admin`
+- `COGNITO_VIEWER_GROUP=viewer`
 
-## Next Steps: Task 3 & Phase 2 Completion
+## Next Steps: Task 3 Execution & Phase 3 Readiness
 
-### Immediate (This Sprint)
-1. **Facebook E2E Testing**: Validate Facebook social login flow with a real Facebook account
-2. **Unit Tests**: ✅ Added 38 tests covering guards, token verification, and controller responses
-3. **Documentation**: Update engineering-tasks-happy-path with Task 1/2 completion status
+### Immediate
+1. Create the real `viewer` group in Cognito and assign the Facebook user.
+2. Add the real `custom:tier` attribute in Cognito and backfill it for test users.
+3. Attach the Pre Token Generation Lambda so the app-side tier support receives a real claim.
 
-### Task 3: Groups, Custom Attributes, Lambda Trigger (Optional for MVP)
-- **`viewer` group**: Create in Cognito and assign test users
-- **`custom:tier` attribute**: Define custom user attribute string
-- **Pre Token Generation Lambda**: Implement to inject `custom:tier` into tokens (for advanced scenarios)
-- **Test users**: Create Facebook-linked user and assign to groups
+### Task 3 Execution Plan
+
+Goal: make the AWS source environment match the article's richer migration scenario by adding explicit group coverage, a custom user attribute, and token enrichment via Pre Token Generation.
+
+1. Prepare Cognito changes
+- Verify the target User Pool is still `us-east-2_EZsrSxHBb`.
+- Decide the canonical test matrix:
+    - Google user -> `admin`
+    - Facebook user -> `viewer`
+    - optional local user -> fallback validation path
+- Confirm the attribute name remains `custom:tier` and define allowed values such as `free`, `pro`, and `enterprise`.
+
+2. Create missing groups in Cognito
+- Create `viewer` in the Cognito User Pool.
+- Confirm `admin` exists and document its precedence for `/api/admin` authorization.
+- Assign one tested user to `admin` and one tested user to `viewer`.
+
+3. Add the custom user attribute
+- Add mutable string attribute `custom:tier` to the User Pool schema.
+- Backfill `custom:tier` for each migration test user.
+- Record the chosen values in the migration notes so they can later be mapped into Entra extension attributes.
+
+4. Create the Pre Token Generation Lambda
+- Create a Lambda function with permission to be invoked by Cognito.
+- Implement Pre Token Generation logic that reads the user's `custom:tier` and injects it into token claims.
+- Attach the Lambda as the User Pool's Pre Token Generation trigger.
+- Keep the claim name stable and document whether it lands in the ID token, access token, or both.
+
+5. Validate token output end-to-end
+- Sign in with the Google admin user and verify:
+    - `cognito:groups` contains `admin`
+    - token includes the tier claim derived from `custom:tier`
+- Sign in with the Facebook viewer user and verify:
+    - `cognito:groups` contains `viewer`
+    - admin API access is denied as expected
+    - token includes the tier claim derived from `custom:tier`
+
+6. Repo status for Task 3 support
+- App-side support is already implemented for a read-only viewer route and tier claim rendering.
+- No additional backend or frontend code is required unless Cognito emits a different claim shape.
+- If Cognito uses a different custom claim key, update the typed payload and UI mapping to match it.
+
+7. Update tests and docs after execution
+- Add or update backend unit tests only if backend behavior changes.
+- Update [README.md](c:/repos/cognito-social-auth/README.md), [plan.md](c:/repos/cognito-social-auth/plan.md), and [engineering-tasks-happy-path 1.md](c:/repos/cognito-social-auth/packages/docs/engineering-tasks-happy-path%201.md) with final status.
+- Capture the exact Cognito console settings and Lambda event shape used for future Azure mapping.
+
+### Task 3 Done Criteria
+- `viewer` group exists and is assigned to at least one tested user.
+- `custom:tier` exists and is populated for each test user used in migration validation.
+- Pre Token Generation Lambda is attached and verified.
+- Tokens for both admin and viewer users show the expected claims, including tier.
+- Documentation reflects whether Task 3 remains optional or has been fully completed.
 
 ### Phase 3: Azure External ID (Parallel Track)
 - Prepare for Cognito→Entra migration validation  
@@ -180,13 +231,15 @@ Completed:
 - [x] Protected API calls include bearer token
 - [x] Backend validates Cognito access tokens
 - [x] Admin group authorization in backend
+- [x] Viewer/admin read authorization route exists in backend and frontend
 - [x] Google social sign-in end-to-end
 - [x] Google user group-based authorization behavior validated
 - [x] Business logic simulation returned by backend and shown in frontend
 
 Pending:
-- [ ] End-to-end Facebook sign-in
-- [ ] Facebook user role/group operational checklist
+- [ ] Real Cognito `viewer` group creation and assignment
+- [ ] Real Cognito `custom:tier` attribute and Pre Token Generation Lambda
+- [ ] Real-token validation of `/api/viewer` and tier rendering
 
 ## Out of Scope (Current Iteration)
 

@@ -53,6 +53,7 @@ describe('CognitoTokenVerifierService', () => {
         client_id: mockEnv.COGNITO_APP_CLIENT_ID,
         token_use: 'access',
         scope: 'openid email profile',
+        'custom:tier': 'pro',
         'cognito:groups': ['users'],
       };
 
@@ -66,6 +67,7 @@ describe('CognitoTokenVerifierService', () => {
 
       expect(result).toEqual(mockPayload);
       expect(jwtVerify).toHaveBeenCalled();
+      expect(result['custom:tier']).toBe('pro');
     });
 
     it('should throw UnauthorizedException if token_use is not "access"', async () => {
@@ -141,6 +143,24 @@ describe('CognitoTokenVerifierService', () => {
       const result = await service.verifyAccessToken(token);
 
       expect(result['cognito:groups']).toEqual(['admin', 'users']);
+    });
+
+    it('should preserve custom tier claim when present', async () => {
+      const mockPayload: CognitoUser = {
+        sub: 'user-123',
+        token_use: 'access',
+        client_id: mockEnv.COGNITO_APP_CLIENT_ID,
+        'custom:tier': 'enterprise',
+      };
+
+      (createRemoteJWKSet as jest.Mock).mockReturnValue(jest.fn());
+      (jwtVerify as jest.Mock).mockResolvedValue({
+        payload: mockPayload,
+      });
+
+      const result = await service.verifyAccessToken('tier-token');
+
+      expect(result['custom:tier']).toBe('enterprise');
     });
   });
 });

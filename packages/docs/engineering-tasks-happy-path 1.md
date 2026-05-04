@@ -9,8 +9,10 @@ This document is broader than the current repository scope. The current repo sta
 - Facebook social login: completed and validated ✅
 - Backend JWT validation with Cognito JWKS: completed ✅
 - Group-based authorization on `/api/admin`: completed ✅
+- Viewer-capable authorization on `/api/viewer`: completed in repo ✅
+- `custom:tier` claim support in backend/frontend: completed in repo ✅
 - Business logic simulation in controller responses and UI rendering: completed ✅
-- Unit tests for authentication guards and token verification: completed (38 tests) ✅
+- Unit tests for authentication guards and token verification: completed (47 tests) ✅
 - Task 1 (Create Cognito User Pool): ✅ COMPLETE  
 - Task 2 (Configure Cognito app client & resource server): ✅ COMPLETE
 
@@ -45,43 +47,45 @@ Set up a Cognito User Pool that matches the article's example scenario: a consum
 
 ### Task 3: Create groups, custom attributes, and a Lambda trigger (OPTIONAL)
 
-**Status: ⏭️ Not required for AWS MVP. Required only if advancing to Azure migration.**
+**Status: ⚠️ Partially implemented. Repo support is complete; Cognito-side setup is still pending.**
 
-- ⏭️ Create at least two groups: `admin` and `viewer` (admin group exists but viewer not created)
-- ⏭️ Define a custom attribute: `custom:tier` (string)
+- ⚠️ Create at least two groups: `admin` and `viewer` (`admin` is already used by the backend; `viewer` still needs to be created in Cognito)
+- ⚠️ Define a custom attribute: `custom:tier` (repo is ready to read it; Cognito still needs to issue it)
 - ⏭️ Create a Pre Token Generation Lambda trigger that adds a custom claim (e.g., `custom:tier` mapped into the token)
-- ⏭️ Assign a test user to the `admin` group and a ✅
+- ⚠️ Assign a test user to the `admin` group and a test user to the `viewer` group (admin path validated; viewer assignment still pending)
+
+### Task 4: Build the sample web app ✅
 
 **Status: ✅ COMPLETE (using react-oidc-context instead of Amplify Auth)**
 
 - ✅ Build a minimal web app (React or plain JS) that uses OIDC auth with Cognito (Vite + React 19)
-- ✅ Sign in, display ID token claims (SummaryCards component), and call backend API with access token
-- ✅ Deploy to localhost:5173 for validationmplify Auth to sign users in via Cognito
-- The app should: sign in, display the ID token claims, and call the backend API with the access token
-- Deploy to a test URL (localhost is fine for validation) ✅
+- ✅ Sign in, display the ID token claims and summary cards, and call backend API with access token
+- ✅ Add a dedicated `/api/viewer` action for read-only group validation
+- ✅ Surface the optional `custom:tier` claim in the UI when Cognito provides it
+- ✅ Deploy to localhost:5173 for validation
+
+### Task 5: Build the backend API ✅
 
 **Status: ✅ COMPLETE (NestJS on localhost:3000)**
 
 - ✅ Create an API (NestJS with TypeScript) that:
   - ✅ Accepts Cognito access token in `Authorization: Bearer <token>` header
   - ✅ Validates token against Cognito JWKS endpoint (using `jose` library)
-  - ✅ Reads `cognito:groups` to authorize requests via `AdminGroupGuard`
-  - ✅ Returns decoded claims in response for debugging
-- ✅ Deploy locally on localhost:3000rite, viewer can only read)
-  - Returns the decoded claims in the response (for debugging)
-- Deploy locally or on AWS (A ✅ PARTIAL
+  - ✅ Reads `cognito:groups` to authorize requests via `AdminGroupGuard` and `ViewerGroupGuard`
+  - ✅ Returns decoded claims and tier information in responses for debugging
+- ✅ Deploy locally on localhost:3000
 
-**Status: ✅ Core complete (Google + Facebook users created and tested); ⏭️ Optional parts not done**
+### Task 6: Prepare test users ✅ PARTIAL
 
-- ✅ Create at least 3 users:
+**Status: ✅ Core complete; ⚠️ Task 3 additions still pending in Cognito**
+
+- ✅ Create at least 2 tested users:
   1. ✅ User linked to Google (social sign-in) - created and tested
   2. ✅ User linked to Facebook (social sign-in) - created and tested
-  3. ❓ Local user with email + password (not explicitly documented)
-- ✅ Assign users to groups (`admin`) - verified for Google user
-- ⏭️ Set `custom:tier` attribute on each user (optional)
-- ⏭️ Confirm tokens & Lambda trigger runs (Lambda not created yet)
-- Set the `custom:tier` attribute on each user
-- Sign in with each user to confirm tokens are issued correctly and the Lambda trigger runs
+- ⚠️ Local user with email + password is still optional and not documented as complete
+- ⚠️ Assign users to groups: `admin` validated; `viewer` still pending in Cognito
+- ⏭️ Set `custom:tier` attribute on each user in Cognito
+- ⏭️ Confirm tokens and Lambda trigger run with real Cognito-issued claims
 
 ## Target environment (Azure)
 

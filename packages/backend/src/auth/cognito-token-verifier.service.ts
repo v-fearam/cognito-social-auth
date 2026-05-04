@@ -8,6 +8,7 @@ export interface CognitoUser extends JWTPayload {
   client_id?: string;
   token_use?: string;
   scope?: string;
+  'custom:tier'?: string;
   'cognito:groups'?: string[];
 }
 

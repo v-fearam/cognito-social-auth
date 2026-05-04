@@ -12,12 +12,23 @@ const COGNITO_HOSTED_UI_BASE_URL = import.meta.env.VITE_COGNITO_DOMAIN as string
 const COGNITO_APP_CLIENT_ID = import.meta.env.VITE_COGNITO_APP_CLIENT_ID as string;
 const COGNITO_POST_LOGOUT_REDIRECT_URI = import.meta.env.VITE_COGNITO_SIGNOUT_URI as string;
 
-type ProtectedApiPath = '/api/profile' | '/api/admin';
+type ProtectedApiPath = '/api/profile' | '/api/viewer' | '/api/admin';
+type ApiResultViewModel = {
+  rawText: string;
+  controllerMessage?: string;
+  businessResult?: string;
+};
+
+type ApiResponsePayload = {
+  message?: string;
+  businessResult?: string;
+};
 
 function App() {
   const authContext = useAuth();
-  const [profileResponseText, setProfileResponseText] = useState<string>('');
-  const [adminResponseText, setAdminResponseText] = useState<string>('');
+  const [profileResponse, setProfileResponse] = useState<ApiResultViewModel | null>(null);
+  const [viewerResponse, setViewerResponse] = useState<ApiResultViewModel | null>(null);
+  const [adminResponse, setAdminResponse] = useState<ApiResultViewModel | null>(null);
   const isAuthenticated = authContext.isAuthenticated;
   const isLoading = authContext.isLoading;
   const authError = authContext.error;
@@ -42,6 +53,10 @@ function App() {
     () => (groups.length > 0 ? groups.join(', ') : 'No groups assigned'),
     [groups],
   );
+  const tierLabel = useMemo(
+    () => String(authContext.user?.profile['custom:tier'] || 'No tier claim'),
+    [authContext.user?.profile],
+  );
 
   const profileLabel = userEmail || userName;
 
@@ -54,9 +69,9 @@ function App() {
     authContext.signinRedirect();
   }, [authContext]);
 
-  const fetchProtectedEndpoint = useCallback(async (path: ProtectedApiPath, onResult: (value: string) => void) => {
+  const fetchProtectedEndpoint = useCallback(async (path: ProtectedApiPath, onResult: (value: ApiResultViewModel) => void) => {
     if (!authContext.user?.access_token) {
-      onResult('No access token available. Please sign in again.');
+      onResult({ rawText: 'No access token available. Please sign in again.' });
       return;
     }
 
@@ -68,18 +83,34 @@ function App() {
       });
 
       const body = await response.text();
-      onResult(`${response.status} ${response.statusText}\n${body}`);
+      let parsedPayload: ApiResponsePayload | undefined;
+
+      try {
+        parsedPayload = JSON.parse(body) as ApiResponsePayload;
+      } catch {
+        parsedPayload = undefined;
+      }
+
+      onResult({
+        rawText: `${response.status} ${response.statusText}\n${body}`,
+        controllerMessage: parsedPayload?.message,
+        businessResult: parsedPayload?.businessResult,
+      });
     } catch (error) {
-      onResult(error instanceof Error ? error.message : 'Unknown error');
+      onResult({ rawText: error instanceof Error ? error.message : 'Unknown error' });
     }
   }, [authContext.user?.access_token]);
 
   const handleProfileApiRequest = useCallback(() => {
-    void fetchProtectedEndpoint('/api/profile', setProfileResponseText);
+    void fetchProtectedEndpoint('/api/profile', setProfileResponse);
   }, [fetchProtectedEndpoint]);
 
   const handleAdminApiRequest = useCallback(() => {
-    void fetchProtectedEndpoint('/api/admin', setAdminResponseText);
+    void fetchProtectedEndpoint('/api/admin', setAdminResponse);
+  }, [fetchProtectedEndpoint]);
+
+  const handleViewerApiRequest = useCallback(() => {
+    void fetchProtectedEndpoint('/api/viewer', setViewerResponse);
   }, [fetchProtectedEndpoint]);
 
   return (
@@ -100,14 +131,20 @@ function App() {
 
           {!isLoading && !authError && isAuthenticated && (
             <>
-              <SummaryCards profileLabel={profileLabel} groupsLabel={groupsLabel} />
+              <SummaryCards
+                profileLabel={profileLabel}
+                groupsLabel={groupsLabel}
+                tierLabel={tierLabel}
+              />
               <ApiActionsPanel
                 onProfileApiRequest={handleProfileApiRequest}
+                onViewerApiRequest={handleViewerApiRequest}
                 onAdminApiRequest={handleAdminApiRequest}
               />
               <ApiResultsPanel
-                profileResponseText={profileResponseText}
-                adminResponseText={adminResponseText}
+                profileResponse={profileResponse}
+                viewerResponse={viewerResponse}
+                adminResponse={adminResponse}
               />
             </>
           )}

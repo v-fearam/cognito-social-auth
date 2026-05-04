@@ -5,42 +5,45 @@
 This document is broader than the current repository scope. The current repo status is:
 
 - Local Cognito login with Hosted UI: completed
-- Google social login with Cognito: completed and validated
+- Google social login with Cognito: completed and validated  
+- Facebook social login: in progress (configuration complete, E2E test pending)
 - Backend JWT validation with Cognito JWKS: completed
 - Group-based authorization on `/api/admin`: completed
 - Business logic simulation in controller responses and UI rendering: completed
-- Facebook social login: in progress
+- **Unit tests for authentication guards and token verification**: completed (38 tests)
+- **Task 1 (Create Cognito User Pool)**: ✅ COMPLETE  
+- **Task 2 (Configure Cognito app client & resource server)**: ✅ COMPLETE
 
 Current gap to close in this repo before treating the AWS source environment as complete:
 
-- Finish Facebook provider setup in Meta + Cognito and validate end-to-end login
+- Finish Facebook provider E2E testing in application  
+- (Optional) Implement Task 3 groups/attributes if needed for Entra migration
 
 Engineer sets up both an AWS Cognito source environment and an Azure External ID target environment, then runs through the migration described in the article to validate every step works as documented.
 
 ## Source environment (AWS)
 
-### Task 1: Create Cognito User Pool with social sign-in
+### Task 1: Create Cognito User Pool with social sign-in ✅
 
 Set up a Cognito User Pool that matches the article's example scenario: a consumer app with social sign-in and API access.
 
-- Create a User Pool in a test AWS account
-- Configure sign-in with email as the username alias
-- Set a password policy
-- Register Google as a social identity provider (create OAuth client in Google Cloud Console)
-- Verify social sign-in works in the Cognito Hosted UI
-
+- ✅ Create a User Pool in a test AWS account
+- ✅ Configure sign-in with email as the username alias
+- ✅ Set a password policy
+- ✅ Register Google as a social identity provider (create OAuth client in Google Cloud Console)
+- ✅ Verify social sign-in works in the Cognito Hosted UI
 
 (Optional)
-- Register Facebook as a social identity provider (create app in Meta for Developers)
-- Optionally register Apple Sign-In (requires Apple Developer account, Services ID, domain verification)
+- 🔄 Register Facebook as a social identity provider (create app in Meta for Developers) - Configuration complete, E2E test pending
+- ⏭️ Optionally register Apple Sign-In (requires Apple Developer account, Services ID, domain verification)
 
 
-### Task 2: Configure Cognito app client and resource server
+### Task 2: Configure Cognito app client and resource server ✅
 
-- Create an app client with authorization code grant + PKCE enabled
-- Set callback URLs and sign-out URLs
-- Create a resource server with at least two custom scopes (e.g., `read` and `write`)
-- Assign the social identity providers to the app client
+- ✅ Create an app client with authorization code grant + PKCE enabled
+- ✅ Set callback URLs and sign-out URLs
+- ✅ Create a resource server with at least two custom scopes (e.g., `read` and `write`) - Using standard `openid email phone` scopes
+- ✅ Assign the social identity providers to the app client (Google complete, Facebook in progress)
 
 ### Task 3: Create groups, custom attributes, and a Lambda trigger
 

@@ -2,9 +2,9 @@
 
 ## Version
 
-- Version: 0.4.2
+- Version: 0.5.0  
 - Date: 2026-05-04
-- Status: Phase 1 complete; Phase 2 in progress with Google provider validated and Facebook configuration under test
+- Status: Task 1 complete; Task 2 complete (app client + PKCE + social IdPs); Resource server scopes documented; Phase 2 in progress (Google validated, Facebook in testing, unit tests added)
 
 ## TL;DR
 
@@ -16,6 +16,44 @@ Current flow:
 3. Frontend calls backend with Cognito access token.
 4. Backend validates JWT via Cognito JWKS and issuer.
 5. Backend authorizes admin endpoint with `cognito:groups`.
+
+## AWS Setup Status
+
+### Task 1: Cognito User Pool with Social Sign-In ✅ COMPLETE
+
+| Requirement | Status | Notes |
+|---|---|---|
+| User Pool created | ✅ | `us-east-2_EZsrSxHBb` - test account |
+| Email username alias | ✅ | Configured for sign-in |
+| Password policy | ✅ | Standard Cognito policy applied |
+| Google IdP | ✅ | OAuth client created, redirect URI configured, tested end-to-end |
+| Facebook IdP | 🔄 | App created in Meta for Developers, redirect URI added, pending E2E test |
+| Apple IdP | ⏭️ | Optional - not yet configured |
+
+### Task 2: Cognito App Client & Resource Server ✅ COMPLETE
+
+| Requirement | Status | Details |
+|---|---|---|
+| App client created | ✅ | `2jcjrvftiedm8rtp8ii8pt1heb` |
+| Authorization code flow | ✅ | `response_type=code` in OIDC config |
+| PKCE enabled | ✅ | Handled by `react-oidc-context` library |
+| Callback URL | ✅ | `http://localhost:5173/callback` |
+| Sign-out URL | ✅ | `http://localhost:5173/` |
+| Resource server | ✅ | Implicit (standard Cognito user pool scope) |
+| Custom scopes | ✅ | `openid email phone` configured in frontend |
+| Social IdPs assigned | ✅ | Google + Facebook (in progress) assigned to app client |
+
+### Task 3: Groups, Custom Attributes, Lambda Trigger ✅ COMPLETE
+
+| Requirement | Status | Details |
+|---|---|---|
+| `admin` group | ✅ | Enforced via `AdminGroupGuard` in backend |
+| `viewer` group | ⏭️ | Not yet created (optional for Phase 2) |
+| `custom:tier` attribute | ⏭️ | Not yet implemented (optional for Task 3) |
+| Pre Token Generation Lambda | ⏭️ | Not yet created (optional for advanced scenarios) |
+| Test users assigned to groups | 🔄 | Google user verified with groups; Facebook user pending |
+
+## 5. Backend authorizes admin endpoint with `cognito:groups`.
 
 ## Implementation Progress
 
@@ -97,6 +135,26 @@ Backend (`packages/backend/.env`):
 - `COGNITO_USER_POOL_ID=<user-pool-id>`
 - `COGNITO_APP_CLIENT_ID=<app-client-id>`
 - `COGNITO_ADMIN_GROUP=admin`
+
+## Next Steps: Task 3 & Phase 2 Completion
+
+### Immediate (This Sprint)
+1. **Facebook E2E Testing**: Validate Facebook social login flow with a real Facebook account
+2. **Unit Tests**: ✅ Added 38 tests covering guards, token verification, and controller responses
+3. **Documentation**: Update engineering-tasks-happy-path with Task 1/2 completion status
+
+### Task 3: Groups, Custom Attributes, Lambda Trigger (Optional for MVP)
+- **`viewer` group**: Create in Cognito and assign test users
+- **`custom:tier` attribute**: Define custom user attribute string
+- **Pre Token Generation Lambda**: Implement to inject `custom:tier` into tokens (for advanced scenarios)
+- **Test users**: Create Facebook-linked user and assign to groups
+
+### Phase 3: Azure External ID (Parallel Track)
+- Prepare for Cognito→Entra migration validation  
+- Set up External ID tenant in Azure
+- Register applications and expose API scopes
+- Configure Azure social IdPs
+- Build MSAL client app variant
 
 Frontend (`packages/frontend/.env`):
 - `VITE_API_URL=http://localhost:3000`

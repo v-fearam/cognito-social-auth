@@ -45,14 +45,16 @@ Set up a Cognito User Pool that matches the article's example scenario: a consum
 - ✅ Create a resource server with at least two custom scopes (e.g., `read` and `write`) - Using standard `openid email phone` scopes
 - ✅ Assign the social identity providers to the app client (Google and Facebook both complete and tested end-to-end)
 
-### Task 3: Create groups, custom attributes, and a Lambda trigger (OPTIONAL)
+### Task 3: Create groups, custom attributes, and a Lambda trigger (OPTIONAL) ✅ COMPLETE
 
-**Status: ⚠️ Partially implemented. Repo support is complete; Cognito-side setup is still pending.**
+**Status: ✅ Complete. All components implemented, deployed, and tested.**
 
-- ⚠️ Create at least two groups: `admin` and `viewer` (`admin` is already used by the backend; `viewer` still needs to be created in Cognito)
-- ⚠️ Define a custom attribute: `custom:tier` (repo is ready to read it; Cognito still needs to issue it)
-- ⏭️ Create a Pre Token Generation Lambda trigger that adds a custom claim (e.g., `custom:tier` mapped into the token)
-- ⚠️ Assign a test user to the `admin` group and a test user to the `viewer` group (admin path validated; viewer assignment still pending)
+- ✅ Create at least two groups: `admin` and `viewer` (both exist in Cognito and are in use)
+- ✅ Define a custom attribute: `custom:tier` (created in Cognito, populated on test users)
+- ✅ Create a Pre Token Generation Lambda trigger that adds a custom claim (deployed to AWS, attached to user pool, verified working)
+- ✅ Assign a test user to the `admin` group and a test user to the `viewer` group
+- ✅ Lambda source code backed up in repo: [packages/backend/src/auth/cognito-pretoken-lambda/index.mjs](../../packages/backend/src/auth/cognito-pretoken-lambda/index.mjs)
+- ✅ Deployment guide available: [packages/backend/src/auth/cognito-pretoken-lambda/DEPLOYMENT.md](../../packages/backend/src/auth/cognito-pretoken-lambda/DEPLOYMENT.md)
 
 ### Task 4: Build the sample web app ✅
 
@@ -75,17 +77,17 @@ Set up a Cognito User Pool that matches the article's example scenario: a consum
   - ✅ Returns decoded claims and tier information in responses for debugging
 - ✅ Deploy locally on localhost:3000
 
-### Task 6: Prepare test users ✅ PARTIAL
+### Task 6: Prepare test users ✅ COMPLETE
 
-**Status: ✅ Core complete; ⚠️ Task 3 additions still pending in Cognito**
+**Status: ✅ All social users complete with groups and custom tier attributes.**
 
 - ✅ Create at least 2 tested users:
-  1. ✅ User linked to Google (social sign-in) - created and tested
-  2. ✅ User linked to Facebook (social sign-in) - created and tested
-- ⚠️ Local user with email + password is still optional and not documented as complete
-- ⚠️ Assign users to groups: `admin` validated; `viewer` still pending in Cognito
-- ⏭️ Set `custom:tier` attribute on each user in Cognito
-- ⏭️ Confirm tokens and Lambda trigger run with real Cognito-issued claims
+  1. ✅ User linked to Google (social sign-in) - created, tested, assigned to `admin` group
+  2. ✅ User linked to Facebook (social sign-in) - created, tested, assigned to `viewer` group
+- ✅ Local user with email + password: optional, not required for happy path
+- ✅ Assign users to groups: `admin` and `viewer` - verified in Cognito
+- ✅ Set `custom:tier` attribute on each user in Cognito - deployed and populated
+- ✅ Confirmed tokens and Lambda trigger run with real Cognito-issued claims - tested with jwt.io
 
 ## Target environment (Azure)
 

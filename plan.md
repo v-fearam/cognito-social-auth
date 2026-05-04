@@ -43,15 +43,17 @@ Current flow:
 | Custom scopes | ✅ | `openid email phone` configured in frontend |
 | Social IdPs assigned | ✅ | Google + Facebook assigned to app client, both tested end-to-end |
 
-### Task 3: Groups, Custom Attributes, Lambda Trigger ⚠️ PARTIAL
+### Task 3: Groups, Custom Attributes, Lambda Trigger ✅ COMPLETE
 
 | Requirement | Status | Details |
 |---|---|---|
-| `admin` group | ⚠️ Partial | Backend expects it and admin authorization is already validated |
-| `viewer` group | ⚠️ Partial | Repo support is complete via `/api/viewer`, but the real Cognito group is not yet created |
-| `custom:tier` attribute | ⚠️ Partial | Repo support is complete, but Cognito does not yet issue the claim |
-| Pre Token Generation Lambda | ⏭️ | Not yet created |
-| Test users assigned to groups | ⚠️ Partial | Admin path validated; viewer assignment and tier-claim flow still need real-token validation |
+| `admin` group | ✅ Complete | Group exists in Cognito and admin authorization is validated |
+| `viewer` group | ✅ Complete | Group exists in Cognito with assigned user; repo support is complete via `/api/viewer` |
+| `custom:tier` attribute | ✅ Complete | Created in Cognito, populated on test users, successfully injected into tokens |
+| Pre Token Generation Lambda | ✅ Complete | Deployed to AWS Lambda, attached to user pool, verified working (source backed up in repo) |
+| Test users assigned to groups | ✅ Complete | Users assigned to both `admin` and `viewer` groups; tokens include `custom:tier` claim from Lambda |
+| Backend tier support | ✅ Complete | `/api/viewer` endpoint surfaces `custom:tier` claim from JWT payload |
+| Frontend tier display | ✅ Complete | SummaryCards component displays `custom:tier` claim value in UI |
 
 ## Implementation Progress
 
@@ -142,9 +144,9 @@ Backend (`packages/backend/.env`):
 ## Next Steps: Task 3 Execution & Phase 3 Readiness
 
 ### Immediate
-1. Create the real `viewer` group in Cognito and assign the Facebook user.
-2. Add the real `custom:tier` attribute in Cognito and backfill it for test users.
-3. Attach the Pre Token Generation Lambda so the app-side tier support receives a real claim.
+1. Add the real `custom:tier` attribute in Cognito and backfill it for test users.
+2. Attach the Pre Token Generation Lambda so the app-side tier support receives a real claim.
+3. Validate that tokens include tier and call `/api/viewer` and `/api/admin` with real Cognito-issued tokens.
 
 ### Task 3 Execution Plan
 
@@ -159,9 +161,9 @@ Goal: make the AWS source environment match the article's richer migration scena
 - Confirm the attribute name remains `custom:tier` and define allowed values such as `free`, `pro`, and `enterprise`.
 
 2. Create missing groups in Cognito
-- Create `viewer` in the Cognito User Pool.
-- Confirm `admin` exists and document its precedence for `/api/admin` authorization.
-- Assign one tested user to `admin` and one tested user to `viewer`.
+- Confirm `admin` and `viewer` exist in the Cognito User Pool.
+- Confirm at least one tested user is assigned to each group.
+- Document precedence for `/api/admin` authorization behavior.
 
 3. Add the custom user attribute
 - Add mutable string attribute `custom:tier` to the User Pool schema.
@@ -237,7 +239,6 @@ Completed:
 - [x] Business logic simulation returned by backend and shown in frontend
 
 Pending:
-- [ ] Real Cognito `viewer` group creation and assignment
 - [ ] Real Cognito `custom:tier` attribute and Pre Token Generation Lambda
 - [ ] Real-token validation of `/api/viewer` and tier rendering
 

@@ -146,9 +146,13 @@ Implemented and validated:
 - [x] Tier claim can be surfaced in profile and viewer responses when Cognito provides it
 - [x] Frontend and backend build succeed
 
-Pending (manual Cognito Task 3 work):
-- [ ] Create the `viewer` group in Cognito and assign a real user
-- [ ] Add the `custom:tier` user attribute in Cognito
+Task 3 completion (manual Cognito work):
+- [x] Add the `custom:tier` user attribute in Cognito (created and populated on test users)
+- [x] Deploy Pre Token Generation Lambda to AWS Lambda (source backed up in repo at `packages/backend/src/auth/cognito-pretoken-lambda/`)
+- [x] Attach Pre Token Generation Lambda to Cognito user pool trigger (tested and verified)
+- [x] Confirm `custom:tier` claim appears in ID and access tokens (validated via jwt.io)
+- [x] Verify backend `/api/viewer` endpoint receives tier claim (200 OK response with tier data)
+- [x] Verify frontend displays tier claim in SummaryCards component (UI shows tier value)
 - [ ] Attach a Pre Token Generation Lambda to inject the tier claim into tokens
 - [ ] Validate viewer access and tier claim with real Cognito-issued tokens
 

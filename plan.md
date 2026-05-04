@@ -2,9 +2,9 @@
 
 ## Version
 
-- Version: 0.4.1
-- Date: 2026-04-30
-- Status: Phase 1 complete; Phase 2 in progress with Google provider validated
+- Version: 0.4.2
+- Date: 2026-05-04
+- Status: Phase 1 complete; Phase 2 in progress with Google provider validated and Facebook configuration under test
 
 ## TL;DR
 
@@ -21,12 +21,12 @@ Current flow:
 
 | Workstream | Current State | Progress | Last Updated | Notes |
 |---|---|---:|---|---|
-| Phase 0 - Local app (no auth) | Done | 100% | 2026-04-30 | Baseline complete |
-| Phase 1 - Cognito email/password | Done | 100% | 2026-04-30 | Hosted UI + callback + backend guards complete |
-| Phase 2 - Social IdPs (Google/Facebook) | In progress | 50% | 2026-04-30 | Google complete, Facebook pending |
-| Frontend (React/Vite) | Done for Phase 1 | 85% | 2026-04-30 | OIDC integration + component refactor complete |
-| Backend (NestJS API) | Done for Phase 1 | 90% | 2026-04-30 | Access token verification + admin guard + dotenv loading complete |
-| Testing and validation | Core checks done | 85% | 2026-04-30 | Google flow validated; Facebook scenarios pending |
+| Phase 0 - Local app (no auth) | Done | 100% | 2026-05-04 | Baseline complete |
+| Phase 1 - Cognito email/password | Done | 100% | 2026-05-04 | Hosted UI + callback + backend guards complete |
+| Phase 2 - Social IdPs (Google/Facebook) | In progress | 60% | 2026-05-04 | Google complete, Facebook redirect configuration already in progress |
+| Frontend (React/Vite) | Done for Phase 1 | 90% | 2026-05-04 | OIDC integration + component refactor + structured API result rendering complete |
+| Backend (NestJS API) | Done for Phase 1 | 95% | 2026-05-04 | Access token verification + admin guard + dotenv loading + business result simulation complete |
+| Testing and validation | Core checks done | 90% | 2026-05-04 | Google flow validated; Facebook scenarios pending |
 
 ## Implemented Architecture
 
@@ -75,10 +75,17 @@ cognito-social-auth/
 2. Added `CognitoAuthGuard` for bearer token validation.
 3. Added `AdminGroupGuard` enforcing `COGNITO_ADMIN_GROUP` (default `admin`).
 4. Added explicit `.env` loading in backend startup for reliable runtime config.
-5. Protected routes:
+5. Added business logic simulation messages in controller responses for health, profile, and admin endpoints.
+6. Protected routes:
 - `/api/health` public
 - `/api/profile` authenticated
 - `/api/admin` authenticated + admin group
+
+### UI response rendering
+
+1. The UI preserves the full raw controller response for each protected endpoint.
+2. The UI extracts and displays the controller `message` separately.
+3. The UI extracts and displays `businessResult` separately so controller result and business result remain visible together.
 
 ## Required Environment Variables
 
@@ -117,6 +124,7 @@ Completed:
 - [x] Admin group authorization in backend
 - [x] Google social sign-in end-to-end
 - [x] Google user group-based authorization behavior validated
+- [x] Business logic simulation returned by backend and shown in frontend
 
 Pending:
 - [ ] End-to-end Facebook sign-in

@@ -1,5 +1,20 @@
 # Engineering tasks: Cognito to Entra External ID happy path validation
 
+## Current repo status (2026-05-04)
+
+This document is broader than the current repository scope. The current repo status is:
+
+- Local Cognito login with Hosted UI: completed
+- Google social login with Cognito: completed and validated
+- Backend JWT validation with Cognito JWKS: completed
+- Group-based authorization on `/api/admin`: completed
+- Business logic simulation in controller responses and UI rendering: completed
+- Facebook social login: in progress
+
+Current gap to close in this repo before treating the AWS source environment as complete:
+
+- Finish Facebook provider setup in Meta + Cognito and validate end-to-end login
+
 Engineer sets up both an AWS Cognito source environment and an Azure External ID target environment, then runs through the migration described in the article to validate every step works as documented.
 
 ## Source environment (AWS)

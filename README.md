@@ -17,6 +17,8 @@ What is implemented now:
 6. Backend startup explicitly loads `packages/backend/.env`.
 7. Google social provider login is working end-to-end.
 8. UI refactored into reusable React components with consistent naming.
+9. Backend controllers now return a business logic simulation message in addition to the technical response payload.
+10. Frontend preserves the raw controller payload and also displays controller message plus business logic simulation separately.
 
 ## Target Authentication Flow
 
@@ -132,6 +134,7 @@ Implemented and validated:
 - [x] Access token sent to backend protected endpoints
 - [x] Backend token signature and issuer validation via JWKS
 - [x] Admin group guard on `/api/admin`
+- [x] Business logic simulation included in controller responses and shown in the UI
 - [x] Frontend and backend build succeed
 
 Pending (Phase 2):

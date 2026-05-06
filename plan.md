@@ -132,9 +132,9 @@ In the Entra admin center (switched to the "Cognito Migration" tenant):
 
 ---
 
-## Step 4: Configure Social Identity Providers (Google & Facebook)
+## Step 4: Configure Social Identity Providers (Google & Facebook) ✅ COMPLETE
 
-### 4a. Google
+### 4a. Google ✅ COMPLETE
 
 1. In Entra admin center: **External Identities > All identity providers > Google > Configure**
 2. Enter the Google OAuth **Client ID** and **Client Secret** (same as used for Cognito)
@@ -148,6 +148,16 @@ In the Entra admin center (switched to the "Cognito Migration" tenant):
    - `https://cognitomigration.ciamlogin.com/cognitomigration.onmicrosoft.com/federation/oauth2`
 4. Also add `ciamlogin.com` and `microsoftonline.com` as **Authorized domains** in Google OAuth consent screen
 
+### Google verification notes (2026-05-06)
+
+- Existing Google OAuth client reused from the Cognito setup
+- Entra External ID redirect URIs added in Google Cloud Console
+- Authorized domains verified in Google OAuth consent/branding:
+   - `microsoftonline.com`
+   - `ciamlogin.com`
+- Existing Cognito domain kept during migration for parallel operation
+- Google identity provider in Entra External ID: `Configured`
+
 ### 4b. Facebook
 
 1. In Entra admin center: **External Identities > All identity providers > Facebook > Configure**
@@ -155,11 +165,27 @@ In the Entra admin center (switched to the "Cognito Migration" tenant):
 3. In Meta for Developers, add the Entra redirect URI to "Valid OAuth Redirect URIs":
    - `https://cognitomigration.ciamlogin.com/cognitomigration.onmicrosoft.com/federation/oauth2`
 
+### Remaining actions to complete Step 4
+
+- [x] Configure Google OAuth redirect URIs and authorized domains
+- [x] Configure Google identity provider in Entra External ID using Client ID and Client Secret
+- [x] Configure Facebook identity provider in Entra External ID
+- [x] Confirm Facebook redirect URI is updated in Meta for Developers
+
+### Entra provider status snapshot (2026-05-06)
+
+- Microsoft Entra ID: Configured
+- Email one-time passcode: Configured
+- Microsoft: Configured
+- Google: Configured
+- Facebook: Configured
+- Apple: Not configured
+
 **Reference:** https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-google-federation-customers
 
 ---
 
-## Step 5: Create a User Flow and Associate the App
+## Step 5: Create a User Flow and Associate the App ✅ COMPLETE
 
 1. In Entra admin center: **External Identities > User flows > New user flow**
 2. Name: `SignUpSignIn` (or similar)
@@ -169,6 +195,25 @@ In the Entra admin center (switched to the "Cognito Migration" tenant):
 4. User attributes to collect: Email, Display Name (and any others needed)
 5. Select **Create**
 6. Open the user flow > **Applications** > Add the SPA app registration from Step 2
+
+### Verification notes (2026-05-06)
+
+- User flow created: `SignUpSignIn`
+- Application attached to flow: `cognito-migration-spa`
+- Identity providers selected in flow:
+   - Email with password
+   - Google
+   - Facebook
+- Required user attributes confirmed:
+   - Email Address
+   - Display Name
+- User flow execution tested:
+   - Google/Facebook options appear and launch
+   - Facebook test account hit policy message: `Invalid consumer domain for social signup` (enterprise-domain social sign-up restriction, not a provider wiring issue)
+
+### Notes for test execution
+
+- For Facebook social sign-up validation, use a consumer-domain Facebook account (for example `gmail.com`, `outlook.com`) to avoid enterprise-domain restriction.
 
 **Reference:** https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-user-flow-sign-up-sign-in-customers
 

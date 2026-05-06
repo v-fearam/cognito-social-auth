@@ -126,7 +126,24 @@ Set up a Cognito User Pool that matches the article's example scenario: a consum
 - In the client app, add the API scopes under "API permissions"
 - Grant admin consent
 
-### Task 9: Configure social identity providers in External ID ⏭️
+### Task 9: Configure social identity providers in External ID ✅ COMPLETE
+
+**Progress snapshot (2026-05-06):**
+
+- ✅ Google OAuth client updated with required Entra External ID redirect URIs
+- ✅ Google OAuth authorized domains verified: `microsoftonline.com`, `ciamlogin.com`
+- ✅ Existing Cognito Google configuration preserved during migration
+- ✅ Google identity provider configured in Entra External ID
+- ✅ Facebook identity provider configured in Entra External ID
+- ✅ Facebook redirect URI updated in Meta with Entra URI (Cognito URI preserved)
+- ✅ User flow created: `SignUpSignIn`
+- ✅ User flow applications includes: `cognito-migration-spa`
+- ✅ User flow identity providers selected: Email with password, Google, Facebook
+- ✅ User attributes verified: Email Address + Display Name
+- ✅ User flow run executed; Google/Facebook options displayed and launched
+- ℹ️ Facebook social sign-up with enterprise-domain account returns expected policy block: `Invalid consumer domain for social signup`
+
+**Next active task:** Task 10 (app roles `admin` and `viewer`).
 
 - Add Google as a social identity provider using the same OAuth client from Task 1 (add the External ID redirect URI in Google Cloud Console)
 - Add Facebook using the same app from Task 1 (add the External ID redirect URI in Meta for Developers)

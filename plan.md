@@ -8,6 +8,22 @@ Migrate the existing React + NestJS application from AWS Cognito authentication 
 
 ---
 
+## 📋 Session Status — May 6, 2026
+
+**Infrastructure Setup: ✅ COMPLETE**
+
+All Entra portal configuration is ready:
+- ✅ Step 1–7: Tenant, app registrations, social IdPs, user flow, and custom authentication extension
+- ✅ Custom extension Azure Function code created and versioned in git
+- ⏳ **Tomorrow's work:** Attach custom extension to SignUpSignIn flow and test token claims, then proceed to frontend (Step 8) and backend (Step 9) code migration
+
+**Next immediate action when continuing:**
+- **Step 7.4:** Attach `CustomAuthenticationExtensionsAPI` to SignUpSignIn user flow via Entra admin center
+- Verify `tier` claim in issued token (at jwt.ms)
+- Then proceed to Step 8 (MSAL frontend migration) and Step 9 (Entra token validation on backend)
+
+---
+
 ## Current Architecture
 
 | Layer | Technology | Auth mechanism |
@@ -246,23 +262,37 @@ On the **SPA app registration**:
 
 ---
 
-## Step 7: Create Custom Authentication Extension for `custom:tier` Claim
+## Step 7: Create Custom Authentication Extension for `tier` Claim ✅ COMPLETE
 
 This replicates the Cognito Pre Token Generation Lambda:
 
-1. **Create an Azure Function** (HTTP trigger, Node.js/TypeScript) that:
-   - Receives the `OnTokenIssuanceStart` event from Entra
-   - Looks up the user's tier value (from a store or extension attribute)
-   - Returns the `custom:tier` claim in the response
-2. **Register as Custom Authentication Extension** in Entra admin center:
-   - Type: Token issuance start event
-   - Target URL: the Azure Function endpoint
-   - Configure authentication (Managed Identity or client credentials)
-3. **Configure a Custom Claims Provider** on the app registration:
-   - Map the external claim to the token
-4. **Test:** Sign in and verify `custom:tier` appears in the issued token
+### 7.1–7.3: Azure Function + Extension Registration ✅ COMPLETE
 
-**Alternative (simpler):** Use Entra **extension attributes** on user objects and map them via claims mapping policy (no Azure Function needed if the value is static per user).
+- ✅ Azure Function created (HTTP trigger, Node.js handler)
+  - Location: `packages/backend/src/auth/entra-token-issuance-function/index.js`
+  - Versioned in git, ready to deploy to Azure Function Flex Consumption plan
+  - Returns `tier` claim based on email domain logic (example: `@contoso.com` → `enterprise`, else → `standard`)
+  - Also includes `ApiVersion` and `CorrelationId` claims
+
+- ✅ Custom Authentication Extension registered in Entra:
+  - Name: `CustomAuthenticationExtensionsAPI`
+  - Event type: `OnTokenIssuanceStart`
+  - Extension type: Provide claims for token
+  - Function URL: `https://pretoken-tier-hbdtjqd.azurewebsites.net/api/CustomAuthenticationExtensionsAPI`
+  - Auth: Dedicated app registration (new, created during extension wizard)
+  - Permissions: Admin consent granted
+  - Claims available: `tier`, `ApiVersion`, `CorrelationId`
+
+### 7.4: Attach Extension to User Flow (READY FOR TOMORROW)
+
+**Next step when continuing:**
+1. Go to **External Identities → User flows → SignUpSignIn**
+2. **Single sign-on → Attributes & Claims → Edit**
+3. **Advanced settings → Custom claims provider → Configure**
+4. Select `CustomAuthenticationExtensionsAPI` extension
+5. Map the `tier` claim to token claims
+6. Save and test sign-in flow
+7. Verify `tier` claim appears in token at jwt.ms
 
 **Reference:** https://learn.microsoft.com/en-us/entra/external-id/customers/concept-custom-extensions
 
@@ -440,14 +470,20 @@ If existing Cognito users need to be migrated (not new signups):
 
 ```
 Step 1  ✅ COMPLETE (Tenant details gathered)
-Step 2  → Register SPA app
-Step 3  → Register API app + expose scopes
-Step 4  → Configure Google & Facebook IdPs
-Step 5  → Create user flow + associate app
-Step 6  → Create app roles + assign test users
-Step 7  → Custom claims extension (can be deferred)
-Step 8  → Frontend code changes (MSAL)
-Step 9  → Backend code changes (Entra token validation)
-Step 10 → End-to-end testing
-Step 11 → (Optional) User migration
+Step 2  ✅ COMPLETE (SPA app registered, auth verified)
+Step 3  ✅ COMPLETE (API app registered, scopes, permissions)
+Step 4  ✅ COMPLETE (Google & Facebook IdPs configured)
+Step 5  ✅ COMPLETE (User flow created, providers tested)
+Step 6  ✅ COMPLETE (App roles created)
+Step 7  ✅ COMPLETE (Azure Function + custom extension registered)
+Step 7.4 ⏳ TODO (Attach extension to user flow, test tier claim)
+Step 8  ⏳ TODO (Frontend code: MSAL migration)
+Step 9  ⏳ TODO (Backend code: Entra token validation)
+Step 10 ⏳ TODO (End-to-end testing)
+Step 11 ⏳ TODO (Optional user migration)
 ```
+
+**Resuming tomorrow:**
+1. Attach custom extension to SignUpSignIn user flow
+2. Test tier claim in issued token at jwt.ms
+3. Begin Step 8 (frontend MSAL integration)

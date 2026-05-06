@@ -219,7 +219,7 @@ In the Entra admin center (switched to the "Cognito Migration" tenant):
 
 ---
 
-## Step 6: Configure App Roles (replaces Cognito groups)
+## Step 6: Configure App Roles (replaces Cognito groups) 🔄 IN PROGRESS
 
 On the **SPA app registration**:
 
@@ -232,6 +232,15 @@ On the **SPA app registration**:
    - Value: `viewer`
    - Allowed member types: Users/Groups
 3. Assign test users to roles via **Enterprise applications > [app] > Users and groups > Add assignment**
+
+### Status snapshot (2026-05-06)
+
+- ✅ App roles created in `cognito-migration-spa`:
+   - `admin`
+   - `viewer`
+- ✅ Enterprise app assignment flow verified (Users and groups)
+- ⏳ Deferred until after user migration:
+   - Ensure final test matrix has one `admin` user and one `viewer` user assigned
 
 > **Why app roles over groups:** For External ID (CIAM) scenarios, app roles are simpler and appear directly in the `roles` claim of the token. No "groups overage" handling needed.
 

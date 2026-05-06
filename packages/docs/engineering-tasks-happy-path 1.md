@@ -152,7 +152,13 @@ Set up a Cognito User Pool that matches the article's example scenario: a consum
 - Associate the client app with the user flow
 - Test: sign in with Google/Facebook through the External ID user flow, confirm a user is created
 
-### Task 10: Set up groups or app roles ⏭️
+### Task 10: Set up groups or app roles 🔄 IN PROGRESS
+
+**Progress snapshot (2026-05-06):**
+
+- ✅ App roles created on `cognito-migration-spa`: `admin`, `viewer`
+- ✅ Role assignment location verified: Enterprise applications > Users and groups
+- ⏳ Deferred until after user migration: finalize role assignment matrix (at least one `admin` and one `viewer` user)
 
 - Create app roles on the client app registration: `admin` and `viewer`
 - Or: create Entra groups matching the Cognito groups

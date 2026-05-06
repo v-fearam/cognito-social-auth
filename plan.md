@@ -38,7 +38,7 @@ Migrate the existing React + NestJS application from AWS Cognito authentication 
 
 ---
 
-## Step 2: Register the Frontend SPA Application
+## Step 2: Register the Frontend SPA Application ✅ COMPLETE
 
 In the Entra admin center (switched to the "Cognito Migration" tenant):
 
@@ -54,6 +54,35 @@ In the Entra admin center (switched to the "Cognito Migration" tenant):
    - Authorization code flow with PKCE is enabled (default for SPA platform)
    - No implicit flow needed
 7. Under **API permissions > Grant admin consent** for the tenant (required for external tenants)
+
+### Captured data (2026-05-06)
+
+| Field | Value |
+|-------|-------|
+| **App registration name** | `cognito-migration-spa` |
+| **Application (client) ID** | `6d28eafe-06fd-46d7-b04a-3403048bfd1c` |
+| **Directory (tenant) ID** | `0a3af0e3-416b-4a6b-97e9-cb3a9a094449` |
+| **Supported account types** | My organization only (single tenant: Cognito Migration) |
+| **Redirect URI platform** | SPA |
+| **Redirect URI (dev)** | `http://localhost:5173/` |
+| **Redirect URI count** | 0 web, 1 spa, 0 public client |
+
+### Remaining checks to complete Step 2
+
+- [x] Add trailing-slash redirect URI variant: `http://localhost:5173/`
+- [x] Confirm **Authentication** settings are aligned for SPA (PKCE flow, no implicit flow)
+- [x] Grant admin consent in **API permissions** (current Microsoft Graph `User.Read` shows granted)
+
+> Note: After Step 3 adds backend API scopes to this SPA, grant admin consent again for the new API permission entries.
+> Optional compatibility: Add `http://localhost:5173` as an extra SPA redirect URI if your local app sends the callback URL without trailing slash.
+
+### Authentication settings verification (2026-05-06)
+
+- `Implicit grant and hybrid flows`:
+   - Access tokens: Off
+   - ID tokens: Off
+- `Allow public client flows`: Disabled
+- `Enable native authentication`: Disabled
 
 **Reference:** https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app
 

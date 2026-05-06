@@ -98,7 +98,21 @@ Set up a Cognito User Pool that matches the article's example scenario: a consum
 - Create a Microsoft Entra External ID tenant in the Entra admin center
 - Note the tenant name, tenant ID, and domain
 
-### Task 8: Register applications and expose API ⏭️
+### Task 8: Register applications and expose API 🔄 IN PROGRESS
+
+**Progress snapshot (2026-05-06):**
+
+- ✅ Client app registration created in External ID tenant
+- ✅ App name: `cognito-migration-spa`
+- ✅ Supported account type: Single tenant only - Cognito Migration
+- ✅ SPA redirect URI configured: `http://localhost:5173/`
+- ✅ Application (client) ID captured: `6d28eafe-06fd-46d7-b04a-3403048bfd1c`
+- ✅ Directory (tenant) ID confirmed: `0a3af0e3-416b-4a6b-97e9-cb3a9a094449`
+- ✅ Admin consent granted for current default permission (`Microsoft Graph > User.Read`)
+- ✅ Authentication settings verified for SPA: implicit/hybrid token toggles OFF
+- ℹ️ Optional compatibility: add redirect URI `http://localhost:5173` if callback matching requires non-trailing-slash variant
+- ⏳ Pending: register backend API app and expose scopes
+- ⏳ Pending: add API permission from SPA to backend API and grant admin consent for the new scope
 
 - Register the client app (web app) with redirect URI matching the sample app
 - Enable authorization code flow with PKCE

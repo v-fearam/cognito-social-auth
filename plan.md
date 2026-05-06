@@ -88,7 +88,7 @@ In the Entra admin center (switched to the "Cognito Migration" tenant):
 
 ---
 
-## Step 3: Register the Backend API Application
+## Step 3: Register the Backend API Application ✅ COMPLETE
 
 1. Create a second app registration: `cognito-migration-api`
 2. Under **Expose an API**:
@@ -100,6 +100,35 @@ In the Entra admin center (switched to the "Cognito Migration" tenant):
    - Add permission > My APIs > select the backend API app
    - Select the scopes declared above
    - Grant admin consent
+
+### Captured data (2026-05-06)
+
+| Field | Value |
+|-------|-------|
+| **App registration name** | `cognito-migration-api` |
+| **Application (client) ID** | `6c959c17-63ba-4477-b66e-928d7d9ba937` |
+| **Object ID** | `a6f13eaa-3ddb-42e1-bf1e-706b1fa0fb31` |
+| **Directory (tenant) ID** | `0a3af0e3-416b-4a6b-97e9-cb3a9a094449` |
+| **Supported account types** | My organization only (single tenant: Cognito Migration) |
+| **State** | Activated |
+| **Redirect URIs** | Not configured (expected for API app at this stage) |
+| **Application ID URI** | `api://6c959c17-63ba-4477-b66e-928d7d9ba937` |
+| **Scopes created** | `read`, `write` |
+| **Scope consent model** | Admins only |
+
+### Remaining actions to complete Step 3
+
+- [x] Set **Application ID URI** in **Expose an API** (`api://6c959c17-63ba-4477-b66e-928d7d9ba937`)
+- [x] Add delegated scopes `read` and `write` (granular scope model)
+- [x] In SPA app permissions, add API delegated scopes `read` and `write`
+- [x] Grant admin consent again for the newly added API scopes
+
+### API permissions verification (2026-05-06)
+
+- SPA app `cognito-migration-spa` has delegated permissions:
+   - Read API data (`read`) -> Granted for Cognito Migration
+   - Write API data (`write`) -> Granted for Cognito Migration
+- Existing Microsoft Graph `User.Read` remains granted
 
 ---
 

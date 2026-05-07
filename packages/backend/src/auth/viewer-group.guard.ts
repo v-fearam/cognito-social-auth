@@ -8,15 +8,15 @@ import { AuthenticatedRequest } from './cognito-auth.guard';
 
 @Injectable()
 export class ViewerGroupGuard implements CanActivate {
-  private readonly viewerGroup = process.env.COGNITO_VIEWER_GROUP || 'viewer';
-  private readonly adminGroup = process.env.COGNITO_ADMIN_GROUP || 'admin';
+  private readonly viewerRole = process.env.ENTRA_VIEWER_ROLE || 'viewer';
+  private readonly adminRole = process.env.ENTRA_ADMIN_ROLE || 'admin';
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const groups = request.user?.['cognito:groups'] ?? [];
+    const roles = request.user?.roles ?? [];
 
-    if (!groups.includes(this.viewerGroup) && !groups.includes(this.adminGroup)) {
-      throw new ForbiddenException('Viewer or admin group is required');
+    if (!roles.includes(this.viewerRole) && !roles.includes(this.adminRole)) {
+      throw new ForbiddenException('Viewer or admin role is required');
     }
 
     return true;

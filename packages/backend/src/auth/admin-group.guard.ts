@@ -8,14 +8,14 @@ import { AuthenticatedRequest } from './cognito-auth.guard';
 
 @Injectable()
 export class AdminGroupGuard implements CanActivate {
-  private readonly adminGroup = process.env.COGNITO_ADMIN_GROUP || 'admin';
+  private readonly adminRole = process.env.ENTRA_ADMIN_ROLE || 'admin';
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const groups = request.user?.['cognito:groups'] ?? [];
+    const roles = request.user?.roles ?? [];
 
-    if (!groups.includes(this.adminGroup)) {
-      throw new ForbiddenException('Admin group is required');
+    if (!roles.includes(this.adminRole)) {
+      throw new ForbiddenException('Admin role is required');
     }
 
     return true;

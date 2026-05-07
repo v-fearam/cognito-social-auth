@@ -1,48 +1,115 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { createRemoteJWKSet, jwtVerify, JWTPayload } from 'jose';
+import { createRemoteJWKSet, decodeJwt, jwtVerify, JWTPayload } from 'jose';
 
-export interface CognitoUser extends JWTPayload {
-  sub: string;
-  username?: string;
+export interface EntraUser extends JWTPayload {
+  oid: string;
   email?: string;
-  client_id?: string;
-  token_use?: string;
-  scope?: string;
-  'custom:tier'?: string;
-  'cognito:groups'?: string[];
+  preferred_username?: string;
+  azp?: string;
+  scp?: string;
+  tier?: string;
+  roles?: string[];
 }
 
 @Injectable()
-export class CognitoTokenVerifierService {
-  private readonly region = process.env.COGNITO_REGION;
-  private readonly userPoolId = process.env.COGNITO_USER_POOL_ID;
-  private readonly appClientId = process.env.COGNITO_APP_CLIENT_ID;
+export class EntraTokenVerifierService {
+  private readonly tenantId = process.env.ENTRA_TENANT_ID;
+  private readonly tenantSubdomain = process.env.ENTRA_TENANT_SUBDOMAIN;
+  private readonly tenantDomain =
+    process.env.ENTRA_TENANT_DOMAIN ||
+    (this.tenantSubdomain ? `${this.tenantSubdomain}.onmicrosoft.com` : undefined);
+  private readonly apiClientId = process.env.ENTRA_API_CLIENT_ID;
 
-  private get issuer(): string {
-    if (!this.region || !this.userPoolId) {
-      throw new UnauthorizedException('Cognito environment is not configured on the backend');
+  private get expectedIssuers(): string[] {
+    if (!this.tenantId || !this.tenantDomain) {
+      throw new UnauthorizedException('Entra environment is not configured on the backend');
     }
 
-    return `https://cognito-idp.${this.region}.amazonaws.com/${this.userPoolId}`;
-  }
+    const hostCandidates = [this.tenantSubdomain, this.tenantId].filter(
+      (value): value is string => Boolean(value),
+    );
 
-  async verifyAccessToken(token: string): Promise<CognitoUser> {
-    const jwks = createRemoteJWKSet(new URL(`${this.issuer}/.well-known/jwks.json`));
+    const issuers = hostCandidates.flatMap((host) => {
+      const baseWithTenantId = `https://${host}.ciamlogin.com/${this.tenantId}/v2.0`;
+      const baseWithTenantDomain = `https://${host}.ciamlogin.com/${this.tenantDomain}/v2.0`;
 
-    const { payload } = await jwtVerify(token, jwks, {
-      issuer: this.issuer,
+      return [
+        baseWithTenantId,
+        `${baseWithTenantId}/`,
+        baseWithTenantDomain,
+        `${baseWithTenantDomain}/`,
+      ];
     });
 
-    const cognitoPayload = payload as CognitoUser;
+    return [...new Set(issuers)];
+  }
 
-    if (cognitoPayload.token_use !== 'access') {
-      throw new UnauthorizedException('Expected Cognito access token');
+  private getJwksUriFromIssuer(issuer: string): string {
+    const issuerUrl = new URL(issuer);
+    const normalizedPath = issuerUrl.pathname.replace(/\/v2\.0\/?$/, '');
+    return `${issuerUrl.origin}${normalizedPath}/discovery/v2.0/keys`;
+  }
+
+  async verifyAccessToken(token: string): Promise<EntraUser> {
+    const tokenPreview = token.length > 25 ? `${token.slice(0, 25)}...` : token;
+    const tokenClaims = decodeJwt(token);
+    const tokenIssuer = typeof tokenClaims.iss === 'string' ? tokenClaims.iss : undefined;
+
+    if (!tokenIssuer) {
+      throw new UnauthorizedException('Token is missing iss claim');
     }
 
-    if (this.appClientId && cognitoPayload.client_id !== this.appClientId) {
-      throw new UnauthorizedException('Token was issued for a different app client');
+    if (!this.expectedIssuers.includes(tokenIssuer)) {
+      console.error('[AUTH] token issuer not allowed', {
+        tokenIssuer,
+        expectedIssuers: this.expectedIssuers,
+      });
+      throw new UnauthorizedException('Token issuer is not allowed for this API');
     }
 
-    return cognitoPayload;
+    const jwksUri = this.getJwksUriFromIssuer(tokenIssuer);
+    console.log('[AUTH] verifyAccessToken start', {
+      expectedIssuers: this.expectedIssuers,
+      jwksUri,
+      audience: this.apiClientId,
+      tokenIssuer,
+      tokenAudience: tokenClaims.aud,
+      tokenPreview,
+    });
+
+    const jwks = createRemoteJWKSet(new URL(jwksUri));
+
+    let payload: JWTPayload;
+    try {
+      const result = await jwtVerify(token, jwks, {
+        issuer: tokenIssuer,
+        audience: this.apiClientId,
+      });
+      payload = result.payload;
+      console.log('[AUTH] token verified', {
+        aud: payload.aud,
+        iss: payload.iss,
+        oid: (payload as EntraUser).oid,
+        scp: (payload as EntraUser).scp,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Token verification failed';
+      console.error('[AUTH] token verification error', {
+        message,
+        expectedIssuers: this.expectedIssuers,
+        tokenIssuer,
+        tokenAudience: tokenClaims.aud,
+        audience: this.apiClientId,
+      });
+      throw new UnauthorizedException(`Token verification failed: ${message}`);
+    }
+
+    const entraPayload = payload as EntraUser;
+
+    if (!entraPayload.oid) {
+      throw new UnauthorizedException('Token is missing oid claim');
+    }
+
+    return entraPayload;
   }
 }

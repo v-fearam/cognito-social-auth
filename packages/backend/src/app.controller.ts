@@ -1,18 +1,18 @@
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { AdminGroupGuard } from './auth/admin-group.guard';
-import { CognitoAuthGuard } from './auth/cognito-auth.guard';
+import { EntraAuthGuard } from './auth/cognito-auth.guard';
 import { ViewerGroupGuard } from './auth/viewer-group.guard';
 
-type CognitoRequest = Request & {
+type EntraRequest = Request & {
   user?: {
-    sub?: string;
+    oid?: string;
     email?: string;
-    username?: string;
-    client_id?: string;
-    scope?: string;
-    'custom:tier'?: string;
-    'cognito:groups'?: string[];
+    preferred_username?: string;
+    azp?: string;
+    scp?: string;
+    tier?: string;
+    roles?: string[];
   };
 };
 
@@ -27,36 +27,36 @@ export class AppController {
     };
   }
 
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(EntraAuthGuard)
   @Get('profile')
-  profile(@Req() request: CognitoRequest) {
+  profile(@Req() request: EntraRequest) {
     const user = request.user;
 
     return {
-      sub: user?.sub,
+      oid: user?.oid,
       email: user?.email,
-      username: user?.username,
-      tier: user?.['custom:tier'],
-      groups: user?.['cognito:groups'] ?? [],
-      client_id: user?.client_id,
-      scope: user?.scope,
-      message: 'Valid Cognito access token',
+      username: user?.preferred_username,
+      tier: user?.tier,
+      roles: user?.roles ?? [],
+      azp: user?.azp,
+      scope: user?.scp,
+      message: 'Valid Entra access token',
       businessResult: 'This is the Business result for the controller ProfileController',
     };
   }
 
-  @UseGuards(CognitoAuthGuard, ViewerGroupGuard)
+  @UseGuards(EntraAuthGuard, ViewerGroupGuard)
   @Get('viewer')
-  viewer(@Req() request: CognitoRequest) {
+  viewer(@Req() request: EntraRequest) {
     return {
       message: 'Viewer access granted',
       businessResult: 'This is the Business result for the controller ViewerController',
-      tier: request.user?.['custom:tier'],
+      tier: request.user?.tier,
       data: 'viewer-dashboard-data',
     };
   }
 
-  @UseGuards(CognitoAuthGuard, AdminGroupGuard)
+  @UseGuards(EntraAuthGuard, AdminGroupGuard)
   @Get('admin')
   admin() {
     return {

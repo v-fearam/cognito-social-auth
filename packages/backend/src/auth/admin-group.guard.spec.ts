@@ -12,7 +12,7 @@ describe('AdminGroupGuard', () => {
     }).compile();
 
     guard = module.get<AdminGroupGuard>(AdminGroupGuard);
-    process.env.COGNITO_ADMIN_GROUP = 'admin';
+    process.env.ENTRA_ADMIN_ROLE = 'admin';
   });
 
   it('should be defined', () => {
@@ -23,8 +23,8 @@ describe('AdminGroupGuard', () => {
     it('should allow request if user is in admin group', () => {
       const mockRequest = {
         user: {
-          sub: 'user-123',
-          'cognito:groups': ['admin', 'users'],
+          oid: 'user-123',
+          roles: ['admin', 'viewer'],
         },
       } as unknown as AuthenticatedRequest;
 
@@ -42,8 +42,8 @@ describe('AdminGroupGuard', () => {
     it('should throw ForbiddenException if user is not in admin group', () => {
       const mockRequest = {
         user: {
-          sub: 'user-456',
-          'cognito:groups': ['users'],
+          oid: 'user-456',
+          roles: ['viewer'],
         },
       } as unknown as AuthenticatedRequest;
 
@@ -54,15 +54,15 @@ describe('AdminGroupGuard', () => {
       } as unknown as ExecutionContext;
 
       expect(() => guard.canActivate(mockContext)).toThrow(
-        'Admin group is required',
+        'Admin role is required',
       );
     });
 
     it('should throw ForbiddenException if user has no groups', () => {
       const mockRequest = {
         user: {
-          sub: 'user-789',
-          'cognito:groups': [],
+          oid: 'user-789',
+          roles: [],
         },
       } as unknown as AuthenticatedRequest;
 
@@ -73,7 +73,7 @@ describe('AdminGroupGuard', () => {
       } as unknown as ExecutionContext;
 
       expect(() => guard.canActivate(mockContext)).toThrow(
-        'Admin group is required',
+        'Admin role is required',
       );
     });
 
@@ -87,15 +87,15 @@ describe('AdminGroupGuard', () => {
       } as unknown as ExecutionContext;
 
       expect(() => guard.canActivate(mockContext)).toThrow(
-        'Admin group is required',
+        'Admin role is required',
       );
     });
 
-    it('should throw ForbiddenException if groups are undefined', () => {
+    it('should throw ForbiddenException if roles are undefined', () => {
       const mockRequest = {
         user: {
-          sub: 'user-123',
-          'cognito:groups': undefined,
+          oid: 'user-123',
+          roles: undefined,
         },
       } as unknown as AuthenticatedRequest;
 
@@ -106,12 +106,12 @@ describe('AdminGroupGuard', () => {
       } as unknown as ExecutionContext;
 
       expect(() => guard.canActivate(mockContext)).toThrow(
-        'Admin group is required',
+        'Admin role is required',
       );
     });
 
-    it('should respect custom COGNITO_ADMIN_GROUP environment variable', () => {
-      process.env.COGNITO_ADMIN_GROUP = 'superuser';
+    it('should respect custom ENTRA_ADMIN_ROLE environment variable', () => {
+      process.env.ENTRA_ADMIN_ROLE = 'superuser';
 
       const module = Test.createTestingModule({
         providers: [AdminGroupGuard],
@@ -122,8 +122,8 @@ describe('AdminGroupGuard', () => {
 
       const mockRequest = {
         user: {
-          sub: 'user-123',
-          'cognito:groups': ['superuser'],
+          oid: 'user-123',
+          roles: ['superuser'],
         },
       } as unknown as AuthenticatedRequest;
 
@@ -138,14 +138,14 @@ describe('AdminGroupGuard', () => {
       expect(result).toBe(true);
 
       // Restore
-      process.env.COGNITO_ADMIN_GROUP = 'admin';
+      process.env.ENTRA_ADMIN_ROLE = 'admin';
     });
 
-    it('should allow request if user has multiple groups including admin', () => {
+    it('should allow request if user has multiple roles including admin', () => {
       const mockRequest = {
         user: {
-          sub: 'user-123',
-          'cognito:groups': ['users', 'developers', 'admin', 'viewers'],
+          oid: 'user-123',
+          roles: ['reader', 'writer', 'admin'],
         },
       } as unknown as AuthenticatedRequest;
 

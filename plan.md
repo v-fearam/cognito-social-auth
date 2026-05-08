@@ -8,19 +8,48 @@ Migrate the existing React + NestJS application from AWS Cognito authentication 
 
 ---
 
-## 📋 Session Status — May 6, 2026
+## 📋 Session Status — May 8, 2026
 
-**Infrastructure Setup: ✅ COMPLETE**
+**Migration Status: ✅ Core auth migration complete; custom tier strategy in temporary mode**
 
-All Entra portal configuration is ready:
-- ✅ Step 1–7: Tenant, app registrations, social IdPs, user flow, and custom authentication extension
-- ✅ Custom extension Azure Function code created and versioned in git
-- ⏳ **Tomorrow's work:** Attach custom extension to SignUpSignIn flow and test token claims, then proceed to frontend (Step 8) and backend (Step 9) code migration
+Validated working state at end of session:
+- ✅ Step 1–7 completed and corrected to match current External ID portal behavior
+- ✅ Frontend migrated from Cognito OIDC to MSAL and working
+- ✅ Backend migrated to Entra token validation and working
+- ✅ App roles working in ID and access tokens
+- ✅ Social sign-in tested
+- ✅ Custom `tier` claim wiring through `OnTokenIssuanceStart` validated
+- ✅ AADSTS50146 resolved by configuring app-specific signing keys on service principals
+- ✅ Backend API 401 issue (`no applicable key found in the JSON Web Key Set`) resolved by using app-qualified JWKS first (`?appid=`) with fallback
+- ✅ Working runbook saved in `packages/docs/tutorial-custom-tier-claim-entra-external-id.md`
 
-**Next immediate action when continuing:**
-- **Step 7.4:** Attach `CustomAuthenticationExtensionsAPI` to SignUpSignIn user flow via Entra admin center
-- Verify `tier` claim in issued token (at jwt.ms)
-- Then proceed to Step 8 (MSAL frontend migration) and Step 9 (Entra token validation on backend)
+Validated findings from current function logs:
+- `TokenIssuanceStart` request payload in this tenant/flow does **not** include role/group claims (`claimsPrincipal` missing, no `roles`/`groups` in `authenticationContext.user`)
+- Because roles are unavailable at extension call time, dynamic role-based tier resolution cannot be reliable in current flow
+
+Current temporary operating mode:
+- Function is intentionally simplified to hardcoded `tier = "premium"`
+- Diagnostic payload/user-context logs are kept enabled for troubleshooting
+- Dynamic mapping strategy (env mapping or Graph lookup) deferred until design decision
+
+Portal/product note confirmed with docs:
+- External ID custom attributes can be created in portal, but per-user manual editing isn't exposed on the standard User properties blade.
+- Values are typically set via user flows during sign-up or programmatically via Microsoft Graph extension properties.
+
+Important final-state notes:
+- `TokenIssuanceStart` is not attached on the **User flows → Custom authentication extensions** page in the current portal.
+- The custom claims provider is wired through **Enterprise applications → Single sign-on → Attributes & Claims**.
+- If `tier` is mapped into access tokens, the API service principal also needs its own signing key.
+- Step 5 (Function App auth protection) was intentionally skipped for demo mode and should be revisited later for production hardening.
+
+**Next immediate action when continuing tomorrow:**
+- Keep current hardcoded `premium` behavior for demo continuity
+- Decide long-term tier source of truth:
+   - Graph lookup of extension attribute / app role assignment, or
+   - environment-based deterministic mapping
+- If custom attribute path is chosen, implement Graph read in function using `user.id`
+- Decide whether to productionize Step 5 (protect Azure Function with Entra auth)
+- Rotate the Azure Function key if keeping the current demo deployment
 
 ---
 
@@ -28,10 +57,10 @@ All Entra portal configuration is ready:
 
 | Layer | Technology | Auth mechanism |
 |-------|-----------|----------------|
-| Frontend | React 19 + Vite (port 5173) | `react-oidc-context` / `oidc-client-ts` with Cognito OIDC authority |
-| Backend | NestJS (port 3000) | `jose` JWKS verification against Cognito issuer |
-| Claims | `cognito:groups` (admin/viewer), `custom:tier` | Read from access token |
-| Social IdPs | Google, Facebook | Configured in Cognito User Pool |
+| Frontend | React 19 + Vite (port 5173) | `@azure/msal-react` with Entra External ID authority |
+| Backend | NestJS (port 3000) | `jose` JWKS verification against Entra issuer (app-qualified JWKS fallback) |
+| Claims | `roles` (admin/viewer), `tier` | Roles from access token; tier from TokenIssuanceStart extension |
+| Social IdPs | Google, Facebook | Configured in Entra External ID user flow |
 
 ---
 
@@ -266,39 +295,46 @@ On the **SPA app registration**:
 
 This replicates the Cognito Pre Token Generation Lambda:
 
-### 7.1–7.3: Azure Function + Extension Registration ✅ COMPLETE
+### 7.1–7.4: Azure Function + Extension Registration + Signing Keys ✅ COMPLETE
 
-- ✅ Azure Function created (HTTP trigger, Node.js handler)
-  - Location: `packages/backend/src/auth/entra-token-issuance-function/index.js`
-  - Versioned in git, ready to deploy to Azure Function Flex Consumption plan
-  - Returns `tier` claim based on email domain logic (example: `@contoso.com` → `enterprise`, else → `standard`)
-  - Also includes `ApiVersion` and `CorrelationId` claims
+- ✅ Azure Function implemented as .NET Isolated 8.0 project
+   - Location: `packages/backend/src/auth/pretoken-tier-function/`
+   - Deployable ZIP created via `package-for-upload.ps1`
+   - Live endpoint validated with successful HTTP response
+   - Returns `tier` and `CorrelationId`
 
-- ✅ Custom Authentication Extension registered in Entra:
-  - Name: `CustomAuthenticationExtensionsAPI`
-  - Event type: `OnTokenIssuanceStart`
-  - Extension type: Provide claims for token
-  - Function URL: `https://pretoken-tier-hbdtjqd.azurewebsites.net/api/CustomAuthenticationExtensionsAPI`
-  - Auth: Dedicated app registration (new, created during extension wizard)
-  - Permissions: Admin consent granted
-  - Claims available: `tier`, `ApiVersion`, `CorrelationId`
+- ✅ Custom Authentication Extension registered in Entra
+   - Event type: `TokenIssuanceStart`
+   - Claims configured: `tier`, `CorrelationId`
+   - Admin consent granted
 
-### 7.4: Attach Extension to User Flow (READY FOR TOMORROW)
+- ✅ SPA service principal signing key configured
+   - App ID: `6d28eafe-06fd-46d7-b04a-3403048dfd1c`
 
-**Next step when continuing:**
-1. Go to **External Identities → User flows → SignUpSignIn**
-2. **Single sign-on → Attributes & Claims → Edit**
-3. **Advanced settings → Custom claims provider → Configure**
-4. Select `CustomAuthenticationExtensionsAPI` extension
-5. Map the `tier` claim to token claims
-6. Save and test sign-in flow
-7. Verify `tier` claim appears in token at jwt.ms
+- ✅ API service principal signing key configured for enriched access tokens
+   - App ID: `6c959c17-63ba-4477-b66e-928d7d9ba937`
+
+- ✅ Current portal behavior verified
+   - No separate user-flow assignment exists for `TokenIssuanceStart`
+   - Wiring happens through **Enterprise apps → Single sign-on → Attributes & Claims**
+
+- ✅ `tier` claim confirmed working
+
+**Reference runbook:** `packages/docs/tutorial-custom-tier-claim-entra-external-id.md`
 
 **Reference:** https://learn.microsoft.com/en-us/entra/external-id/customers/concept-custom-extensions
 
 ---
 
-## Step 8: Update Frontend — Replace `react-oidc-context` with MSAL
+## Step 8: Update Frontend — Replace `react-oidc-context` with MSAL ✅ COMPLETE
+
+### Status snapshot (2026-05-07)
+
+- ✅ Frontend migrated to `@azure/msal-react` / `@azure/msal-browser`
+- ✅ Redirect login/logout flow working
+- ✅ ID token claims displayed in UI
+- ✅ `tier` shown in the dashboard
+- ✅ API token acquisition working
 
 ### 8a. Install MSAL packages
 
@@ -375,7 +411,14 @@ VITE_API_SCOPE=api://<API_CLIENT_ID>/access_as_user
 
 ---
 
-## Step 9: Update Backend — Validate Entra Tokens
+## Step 9: Update Backend — Validate Entra Tokens ✅ COMPLETE
+
+### Status snapshot (2026-05-07)
+
+- ✅ Backend validates Entra-issued JWTs
+- ✅ Multi-issuer handling corrected for actual CIAM issuer format
+- ✅ Role-based guards working with Entra roles
+- ✅ `/api/profile`, `/api/viewer`, and `/api/admin` working
 
 ### 9a. Update Token Verifier Service
 
@@ -413,17 +456,17 @@ ENTRA_API_CLIENT_ID=<api-client-id>
 
 ---
 
-## Step 10: Test the Migrated App End-to-End
+## Step 10: Test the Migrated App End-to-End ✅ COMPLETE
 
-1. **Sign in with Google** — User is redirected to Entra External ID, can choose Google, token issued with correct claims
-2. **Sign in with Facebook** — Same flow via Facebook
-3. **Check roles claim** — Admin user gets `roles: ['admin']`, viewer gets `roles: ['viewer']`
-4. **Check custom:tier claim** — Appears in token via custom authentication extension
-5. **Call `/api/profile`** — Backend validates Entra token, returns decoded claims
-6. **Call `/api/viewer`** — Viewer role check passes
-7. **Call `/api/admin`** — Admin role check passes (viewer user is rejected)
-8. **Token refresh** — MSAL silently refreshes the token (no page reload needed)
-9. **Sign out** — `logoutRedirect` clears session and returns to app
+Validated outcomes:
+
+1. ✅ **Sign in with Entra External ID** works from the local app
+2. ✅ **Social sign-in** path validated during migration work
+3. ✅ **Roles claim** works in ID and access tokens
+4. ✅ **`tier` claim** appears through the custom authentication extension
+5. ✅ **`/api/profile`** returns expected claims
+6. ✅ **`/api/viewer`** and **`/api/admin`** enforce roles correctly
+7. ✅ **Sign out** works
 
 ---
 
@@ -475,15 +518,15 @@ Step 3  ✅ COMPLETE (API app registered, scopes, permissions)
 Step 4  ✅ COMPLETE (Google & Facebook IdPs configured)
 Step 5  ✅ COMPLETE (User flow created, providers tested)
 Step 6  ✅ COMPLETE (App roles created)
-Step 7  ✅ COMPLETE (Azure Function + custom extension registered)
-Step 7.4 ⏳ TODO (Attach extension to user flow, test tier claim)
-Step 8  ⏳ TODO (Frontend code: MSAL migration)
-Step 9  ⏳ TODO (Backend code: Entra token validation)
-Step 10 ⏳ TODO (End-to-end testing)
+Step 7  ✅ COMPLETE (Azure Function + extension + signing keys + tier claim)
+Step 8  ✅ COMPLETE (Frontend MSAL migration)
+Step 9  ✅ COMPLETE (Backend Entra token validation)
+Step 10 ✅ COMPLETE (End-to-end testing)
 Step 11 ⏳ TODO (Optional user migration)
 ```
 
 **Resuming tomorrow:**
-1. Attach custom extension to SignUpSignIn user flow
-2. Test tier claim in issued token at jwt.ms
-3. Begin Step 8 (frontend MSAL integration)
+1. Restart the app locally and do a quick regression pass
+2. Decide whether to implement Step 5 production hardening for the Azure Function
+3. Rotate the Azure Function key if preserving the demo environment
+4. Continue Step 11 only if user migration is still required

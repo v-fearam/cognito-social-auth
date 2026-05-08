@@ -6,3 +6,6 @@ cdk.out/
 .env.*
 !.env.example
 backups/
+**/bin/
+**/obj/
+**/out/

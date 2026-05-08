@@ -5,10 +5,11 @@ import { EntraTokenVerifierService, EntraUser } from './cognito-token-verifier.s
 // Mock jose library
 jest.mock('jose', () => ({
   createRemoteJWKSet: jest.fn(),
+  decodeJwt: jest.fn(),
   jwtVerify: jest.fn(),
 }));
 
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
 
 describe('EntraTokenVerifierService', () => {
   let service: EntraTokenVerifierService;
@@ -49,12 +50,17 @@ describe('EntraTokenVerifierService', () => {
         oid: 'user-123',
         email: 'user@example.com',
         preferred_username: 'testuser',
+        iss: `https://${mockEnv.ENTRA_TENANT_SUBDOMAIN}.ciamlogin.com/${mockEnv.ENTRA_TENANT_ID}/v2.0`,
         aud: mockEnv.ENTRA_API_CLIENT_ID,
         scp: 'read',
         tier: 'pro',
         roles: ['viewer'],
       };
 
+      (decodeJwt as jest.Mock).mockReturnValue({
+        iss: mockPayload.iss,
+        aud: mockPayload.aud,
+      });
       (createRemoteJWKSet as jest.Mock).mockReturnValue(jest.fn());
       (jwtVerify as jest.Mock).mockResolvedValue({
         payload: mockPayload,
@@ -70,9 +76,14 @@ describe('EntraTokenVerifierService', () => {
 
     it('should throw UnauthorizedException if oid is missing', async () => {
       const mockPayload = {
+        iss: `https://${mockEnv.ENTRA_TENANT_SUBDOMAIN}.ciamlogin.com/${mockEnv.ENTRA_TENANT_ID}/v2.0`,
         aud: mockEnv.ENTRA_API_CLIENT_ID,
       };
 
+      (decodeJwt as jest.Mock).mockReturnValue({
+        iss: mockPayload.iss,
+        aud: mockPayload.aud,
+      });
       (createRemoteJWKSet as jest.Mock).mockReturnValue(jest.fn());
       (jwtVerify as jest.Mock).mockResolvedValue({
         payload: mockPayload,
@@ -85,24 +96,29 @@ describe('EntraTokenVerifierService', () => {
     });
 
     it('should throw UnauthorizedException if audience does not match', async () => {
-      const mockPayload: EntraUser = {
-        oid: 'user-123',
-        aud: 'different-audience',
-      };
+      const tokenIssuer =
+        `https://${mockEnv.ENTRA_TENANT_SUBDOMAIN}.ciamlogin.com/${mockEnv.ENTRA_TENANT_ID}/v2.0`;
 
-      (createRemoteJWKSet as jest.Mock).mockReturnValue(jest.fn());
-      (jwtVerify as jest.Mock).mockResolvedValue({
-        payload: mockPayload,
+      (decodeJwt as jest.Mock).mockReturnValue({
+        iss: tokenIssuer,
+        aud: 'different-audience',
       });
+      (createRemoteJWKSet as jest.Mock).mockReturnValue(jest.fn());
+      (jwtVerify as jest.Mock).mockRejectedValue(new Error('unexpected "aud" claim value'));
 
       const token = 'token-for-different-client';
       await expect(service.verifyAccessToken(token)).rejects.toThrow(
-        'Token was issued for a different API audience',
+        'Token verification failed',
       );
     });
 
     it('should throw UnauthorizedException if Entra is not configured', async () => {
       delete process.env.ENTRA_TENANT_ID;
+
+      (decodeJwt as jest.Mock).mockReturnValue({
+        iss: `https://${mockEnv.ENTRA_TENANT_SUBDOMAIN}.ciamlogin.com/${mockEnv.ENTRA_TENANT_ID}/v2.0`,
+        aud: mockEnv.ENTRA_API_CLIENT_ID,
+      });
 
       const module: TestingModule = await Test.createTestingModule({
         providers: [EntraTokenVerifierService],
@@ -123,10 +139,15 @@ describe('EntraTokenVerifierService', () => {
       const mockPayload: EntraUser = {
         oid: 'user-123',
         email: 'admin@example.com',
+        iss: `https://${mockEnv.ENTRA_TENANT_SUBDOMAIN}.ciamlogin.com/${mockEnv.ENTRA_TENANT_ID}/v2.0`,
         aud: mockEnv.ENTRA_API_CLIENT_ID,
         roles: ['admin', 'viewer'],
       };
 
+      (decodeJwt as jest.Mock).mockReturnValue({
+        iss: mockPayload.iss,
+        aud: mockPayload.aud,
+      });
       (createRemoteJWKSet as jest.Mock).mockReturnValue(jest.fn());
       (jwtVerify as jest.Mock).mockResolvedValue({
         payload: mockPayload,
@@ -141,10 +162,15 @@ describe('EntraTokenVerifierService', () => {
     it('should preserve tier claim when present', async () => {
       const mockPayload: EntraUser = {
         oid: 'user-123',
+        iss: `https://${mockEnv.ENTRA_TENANT_SUBDOMAIN}.ciamlogin.com/${mockEnv.ENTRA_TENANT_ID}/v2.0`,
         aud: mockEnv.ENTRA_API_CLIENT_ID,
         tier: 'enterprise',
       };
 
+      (decodeJwt as jest.Mock).mockReturnValue({
+        iss: mockPayload.iss,
+        aud: mockPayload.aud,
+      });
       (createRemoteJWKSet as jest.Mock).mockReturnValue(jest.fn());
       (jwtVerify as jest.Mock).mockResolvedValue({
         payload: mockPayload,

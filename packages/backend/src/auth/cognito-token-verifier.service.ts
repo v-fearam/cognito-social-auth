@@ -50,6 +50,20 @@ export class EntraTokenVerifierService {
     return `${issuerUrl.origin}${normalizedPath}/discovery/v2.0/keys`;
   }
 
+  private getJwksUris(tokenIssuer: string, tokenAudience: string | string[] | undefined): string[] {
+    const baseJwksUri = this.getJwksUriFromIssuer(tokenIssuer);
+    const tokenAudienceValue = Array.isArray(tokenAudience) ? tokenAudience[0] : tokenAudience;
+    const appId = tokenAudienceValue || this.apiClientId;
+
+    if (!appId) {
+      return [baseJwksUri];
+    }
+
+    // For app-specific signing keys, Entra publishes keys on the appid-qualified JWKS URI.
+    const appSpecificJwksUri = `${baseJwksUri}?appid=${encodeURIComponent(appId)}`;
+    return [appSpecificJwksUri, baseJwksUri];
+  }
+
   async verifyAccessToken(token: string): Promise<EntraUser> {
     const tokenPreview = token.length > 25 ? `${token.slice(0, 25)}...` : token;
     const tokenClaims = decodeJwt(token);
@@ -67,49 +81,59 @@ export class EntraTokenVerifierService {
       throw new UnauthorizedException('Token issuer is not allowed for this API');
     }
 
-    const jwksUri = this.getJwksUriFromIssuer(tokenIssuer);
+    const jwksUris = this.getJwksUris(tokenIssuer, tokenClaims.aud);
     console.log('[AUTH] verifyAccessToken start', {
       expectedIssuers: this.expectedIssuers,
-      jwksUri,
+      jwksUris,
       audience: this.apiClientId,
       tokenIssuer,
       tokenAudience: tokenClaims.aud,
       tokenPreview,
     });
 
-    const jwks = createRemoteJWKSet(new URL(jwksUri));
-
     let payload: JWTPayload;
-    try {
-      const result = await jwtVerify(token, jwks, {
-        issuer: tokenIssuer,
-        audience: this.apiClientId,
-      });
-      payload = result.payload;
-      console.log('[AUTH] token verified', {
-        aud: payload.aud,
-        iss: payload.iss,
-        oid: (payload as EntraUser).oid,
-        scp: (payload as EntraUser).scp,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Token verification failed';
-      console.error('[AUTH] token verification error', {
-        message,
-        expectedIssuers: this.expectedIssuers,
-        tokenIssuer,
-        tokenAudience: tokenClaims.aud,
-        audience: this.apiClientId,
-      });
-      throw new UnauthorizedException(`Token verification failed: ${message}`);
+    let lastError: unknown;
+    for (const jwksUri of jwksUris) {
+      try {
+        const jwks = createRemoteJWKSet(new URL(jwksUri));
+        const result = await jwtVerify(token, jwks, {
+          issuer: tokenIssuer,
+          audience: this.apiClientId,
+        });
+        payload = result.payload;
+        console.log('[AUTH] token verified', {
+          aud: payload.aud,
+          iss: payload.iss,
+          oid: (payload as EntraUser).oid,
+          scp: (payload as EntraUser).scp,
+          jwksUri,
+        });
+
+        const entraPayload = payload as EntraUser;
+        if (!entraPayload.oid) {
+          throw new UnauthorizedException('Token is missing oid claim');
+        }
+
+        return entraPayload;
+      } catch (error) {
+        lastError = error;
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn('[AUTH] token verification attempt failed', {
+          jwksUri,
+          message,
+        });
+      }
     }
 
-    const entraPayload = payload as EntraUser;
-
-    if (!entraPayload.oid) {
-      throw new UnauthorizedException('Token is missing oid claim');
-    }
-
-    return entraPayload;
+    const message = lastError instanceof Error ? lastError.message : 'Token verification failed';
+    console.error('[AUTH] token verification error', {
+      message,
+      expectedIssuers: this.expectedIssuers,
+      tokenIssuer,
+      tokenAudience: tokenClaims.aud,
+      audience: this.apiClientId,
+      jwksUris,
+    });
+    throw new UnauthorizedException(`Token verification failed: ${message}`);
   }
 }

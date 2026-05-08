@@ -91,12 +91,15 @@ Set up a Cognito User Pool that matches the article's example scenario: a consum
 
 ## Target environment (Azure)
 
-**Status: ⏭️ NOT STARTED (Phase 3 - Future)**
+### Task 7: Create External ID tenant ✅ COMPLETE
 
-### Task 7: Create External ID tenant ⏭️
+**Progress snapshot (2026-05-06):**
 
-- Create a Microsoft Entra External ID tenant in the Entra admin center
-- Note the tenant name, tenant ID, and domain
+- ✅ External ID tenant created: **Cognito Migration**
+- ✅ Tenant ID: `0a3af0e3-416b-4a6b-97e9-cb3a9a094449`
+- ✅ Subdomain: `cognitomigration`
+- ✅ Primary domain: `cognitomigration.onmicrosoft.com`
+- ✅ CIAM authority: `https://cognitomigration.ciamlogin.com/cognitomigration.onmicrosoft.com`
 
 ### Task 8: Register applications and expose API ✅ COMPLETE
 
@@ -152,45 +155,95 @@ Set up a Cognito User Pool that matches the article's example scenario: a consum
 - Associate the client app with the user flow
 - Test: sign in with Google/Facebook through the External ID user flow, confirm a user is created
 
-### Task 10: Set up groups or app roles 🔄 IN PROGRESS
+### Task 10: Set up groups or app roles ✅ COMPLETE
 
-**Progress snapshot (2026-05-06):**
+**Progress snapshot (2026-05-07):**
 
-- ✅ App roles created on `cognito-migration-spa`: `admin`, `viewer`
-- ✅ Role assignment location verified: Enterprise applications > Users and groups
-- ⏳ Deferred until after user migration: finalize role assignment matrix (at least one `admin` and one `viewer` user)
+- ✅ Security groups created in Entra: `admin`, `viewer`
+- ✅ App roles (`admin`, `viewer`) created on **both** app registrations:
+  - `cognito-migration-spa` → roles emitted in the **ID token** (audience = SPA)
+  - `cognito-migration-api` → roles emitted in the **access token** (audience = API)
+- ✅ Enterprise app role-to-group mapping configured:
+  - Enterprise app `cognito-migration-spa`: group `admin` → role `admin`, group `viewer` → role `viewer`
+  - Enterprise app `cognito-migration-api`: group `admin` → role `admin`, group `viewer` → role `viewer`
+- ✅ Test user "Fred" assigned to `viewer` group and verified in both tokens
+- ✅ `/api/viewer` returns 200 with viewer role ✅
+- ✅ `/api/admin` returns 200 with admin role ✅ (tested with admin-assigned user)
+- ✅ Social login (Google/Facebook) tested with new user sign-up
 
-- Create app roles on the client app registration: `admin` and `viewer`
-- Or: create Entra groups matching the Cognito groups
-- Document which approach was chosen and why (article recommends app roles for this scenario)
+**Approach chosen: App roles + Security groups (combined)**
 
-### Task 11: Create custom authentication extension ⏭️
+Per [Microsoft Learn - App roles vs. groups](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps#app-roles-vs-groups) and [Usage scenario](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps#usage-scenario-of-app-roles):
 
-- Create an Azure Function that mimics the Cognito Pre Token Generation Lambda:
-  - On the `OnTokenIssuanceStart` event, return the `custom:tier` value as an extra claim
-- Register the Azure Function as a custom authentication extension in External ID
-- Add the extension to the user flow
-- Test: sign in and verify the custom claim appears in the token
+- In an app-calling-API scenario with two app registrations, roles must be defined on **each** app registration to appear in the corresponding token (ID token for SPA, access token for API)
+- Security groups provide centralized user management: add/remove a user from a group once, and they receive the correct roles in both tokens
+- Each app registration has its own Enterprise App where groups are mapped to roles
 
-### Task 12: Deploy sample web app with MSAL ⏭️
+### Task 11: Create custom authentication extension ✅ COMPLETE
 
-- Update the sample web app from Task 4 (or build a new one) to use MSAL instead of Amplify Auth
-- Configure: client ID, authority (External ID tenant), redirect URI, API scopes
-- The app should: sign in via MSAL, display ID token claims, call the backend API with the Entra access token
-- Verify the MSAL call translations from the article work:
-  - `loginRedirect` replaces `Auth.federatedSignIn`
-  - `acquireTokenSilent` replaces `Auth.currentSession`
-  - `logoutRedirect` replaces `Auth.signOut`
+**Progress snapshot (2026-05-08):**
 
-### Task 13: Update backend API to validate Entra tokens ⏭️
+- ✅ Custom authentication extension created using `OnTokenIssuanceStart` event
+- ✅ Extension mimics Cognito Pre Token Generation Lambda: returns `custom:tier` as an extra claim
+- ✅ Extension registered in **Enterprise applications → Custom authentication extensions**
+- ✅ Azure Function deployed and validated with live HTTP response
+- ✅ App-specific signing key configured on `cognito-migration-spa` service principal
+- ✅ App-specific signing key configured on `cognito-migration-api` service principal for enriched access tokens
+- ✅ Custom claims provider assigned and mapped in **Single sign-on → Attributes & Claims**
+- ✅ `tier` claim confirmed injected in token flow
+- ✅ Demo path validated without Step 5 function protection
 
-- Update (or create a parallel version of) the backend API to:
-  - Validate tokens against the Entra JWKS endpoint
-  - Read `roles` (or `groups`) instead of `cognito:groups`
-  - Read `oid` instead of `sub` as the user identifier
-  - Read `scp` instead of `scope`
-  - Handle the groups overage scenario (if using groups instead of app roles)
-- Test: call the API with an Entra access token, confirm authorization works
+**Latest validation update (2026-05-08):**
+
+- ✅ Added structured diagnostics in function logs (payload summary + user context)
+- ✅ Confirmed with live logs that `TokenIssuanceStart` payload currently contains only minimal user fields (`id`, `userPrincipalName`, etc.) and does not include role/group claims
+- ✅ Confirmed dynamic role-based tier resolution is not reliable in current External ID callout payload
+- ✅ Temporary operating decision: simplify function and hardcode `tier = "premium"` while keeping diagnostics enabled
+- ⏭️ Deferred decision: long-term tier source (Graph lookup of custom attribute/app role vs. env mapping)
+
+**External ID custom attribute note (2026-05-08):**
+
+- ✅ Custom attribute `tier` created in **External Identities → Custom user attributes**
+- ✅ Microsoft Learn guidance reviewed
+- ⚠️ Standard per-user portal properties page does not expose these extension values for manual editing in this flow
+- ✅ Supported paths: collect via user flow during sign-up or set programmatically via Microsoft Graph extension property naming convention
+
+**Reproducible runbook:** See [tutorial-custom-tier-claim-entra-external-id.md](./tutorial-custom-tier-claim-entra-external-id.md) for the validated end-to-end procedure, including:
+1. The Azure Function code for the `tier` claim
+2. How to configure signing keys on both SPA and API service principals when needed
+3. How to assign the custom claims provider and map the claim
+4. The current portal behavior for `TokenIssuanceStart`
+5. Demo vs production guidance for Azure Function protection
+
+### Task 12: Deploy sample web app with MSAL ✅ COMPLETE
+
+**Progress snapshot (2026-05-07):**
+
+- ✅ Frontend migrated from `react-oidc-context` (Cognito) to `@azure/msal-react` (Entra)
+- ✅ MSAL configuration: client ID, CIAM authority, redirect URI, API scopes
+- ✅ `loginRedirect` replaces `Auth.federatedSignIn`
+- ✅ `acquireTokenSilent` replaces `Auth.currentSession` (used for API calls with access token)
+- ✅ `logoutRedirect` replaces `Auth.signOut`
+- ✅ User "Fred" signs in successfully; profile, groups, tier, and session cards display correctly
+- ✅ Social login (Google/Facebook) tested with new user sign-up
+- ✅ Running on `localhost:5173`
+
+### Task 13: Update backend API to validate Entra tokens ✅ COMPLETE
+
+**Progress snapshot (2026-05-07):**
+
+- ✅ Backend migrated from Cognito JWKS validation to Entra JWKS validation (using `jose` library)
+- ✅ Token issuer validation supports CIAM issuer variants (`tenantId.ciamlogin.com` and `subdomain.ciamlogin.com`)
+- ✅ JWKS URI derived dynamically from token issuer for consistency
+- ✅ Audience validated against API client ID (`6c959c17-63ba-4477-b66e-928d7d9ba937`)
+- ✅ Reads `roles` instead of `cognito:groups` for authorization
+- ✅ Reads `oid` instead of `sub` as user identifier
+- ✅ Reads `scp` instead of `scope`
+- ✅ `AdminGroupGuard` and `ViewerGroupGuard` check `roles` claim from access token
+- ✅ `/api/profile` returns 200 with decoded Entra claims
+- ✅ `/api/viewer` returns 200 for users with `viewer` role
+- ✅ `/api/admin` returns 200 for users with `admin` role
+- ✅ Running on `localhost:3000`
 
 ## Migration (the actual test) - to be done after green light and to follow the instruction from article ⏭️
 

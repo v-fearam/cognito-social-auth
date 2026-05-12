@@ -1,7 +1,7 @@
 # Migration Plan: Cognito → Entra External ID (Tasks 14–16)
 
-**Date:** 2026-05-11  
-**Status:** In Progress
+**Date:** 2026-05-12  
+**Status:** Completed (Tasks 14-16 validated)
 
 ---
 
@@ -654,14 +654,14 @@ After importing users, run through each scenario below. Record pass/fail for eac
 
 | # | Scenario | Steps | Expected Result | Pass/Fail |
 |---|---|---|---|---|
-| 1 | **Google social sign-in (migrated user)** | Sign in with the same Google account used in Cognito | Entra matches the existing user via federated identity (not a new registration). Token includes correct `roles` and `tier` claim. | |
-| 2 | **Facebook social sign-in (migrated user)** | Sign in with the same Facebook account used in Cognito | Same as above — existing user matched, not duplicated. | |
-| 3 | **New user sign-up** | A brand-new Google user signs up via the user flow | Entra creates a new user with expected default attributes. | |
-| 4 | **API call with Entra token (admin)** | Admin user calls `/api/admin` and `/api/viewer` | Both return 200 with decoded claims. Admin role visible in token. | |
-| 5 | **API call with Entra token (viewer)** | Viewer user calls `/api/viewer` and `/api/admin` | `/api/viewer` → 200, `/api/admin` → 403. Viewer role visible in token. | |
-| 6 | **Custom tier claim in token** | Sign in with migrated user, inspect token | `tier` claim appears via custom authentication extension (currently hardcoded `"premium"`). | |
-| 7 | **Token refresh** | Wait for access token to expire, let MSAL refresh silently | App continues working without re-prompting user. | |
-| 8 | **Account linking / no duplication** | Migrated Google user signs in again | Same user ID, no duplicate account created in Entra. | |
+| 1 | **Google social sign-in (migrated user)** | Sign in with the same Google account used in Cognito | Entra matches the existing user via federated identity (not a new registration). Token includes correct `roles` and `tier` claim. | PASS |
+| 2 | **Facebook social sign-in (migrated user)** | Sign in with the same Facebook account used in Cognito | Same as above — existing user matched, not duplicated. | N/A (not tested — user has enterprise domain email) |
+| 3 | **New user sign-up** | A brand-new Google user signs up via the user flow | Entra creates a new user with expected default attributes. | PASS |
+| 4 | **API call with Entra token (admin)** | Admin user calls `/api/admin` and `/api/viewer` | Both return 200 with decoded claims. Admin role visible in token. | PASS |
+| 5 | **API call with Entra token (viewer)** | Viewer user calls `/api/viewer` and `/api/admin` | `/api/viewer` → 200, `/api/admin` → 403. Viewer role visible in token. | PASS |
+| 6 | **Custom tier claim in token** | Sign in with migrated user, inspect token | `tier` claim appears via custom authentication extension (currently hardcoded `"premium"`). | PASS |
+| 7 | **Token refresh** | Wait for access token to expire, let MSAL refresh silently | App continues working without re-prompting user. | PASS |
+| 8 | **Account linking / no duplication** | Migrated Google user signs in again | Same user ID, no duplicate account created in Entra. | PASS |
 
 ### How to Run Tests
 

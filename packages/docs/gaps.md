@@ -36,7 +36,7 @@ POC baseline in this repo:
 | G-002 | Authorization claims | Draft discusses groups overage and Graph fallback. POC implements app roles (`roles`) guards and no groups-overage handling path. | packages/backend/src/auth/admin-group.guard.ts, packages/backend/src/auth/viewer-group.guard.ts, packages/docs/engineering-tasks-happy-path 1.md | Recommend app roles as primary model; use security groups assigned to app roles for scalable user administration. Keep groups-overage guidance as optional alternative path. | [SEC-AUTH-MODEL](#SEC-AUTH-MODEL) |
 | G-003 | Tier claim naming | Draft references Cognito `custom:*` mapping to Entra extension attributes. POC custom extension returns `tier` claim directly (not `extension_<appid>_*`). | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/frontend/src/App.tsx, packages/docs/plan-migration.md | Clarify that `extension_<appid>_*` is the directory storage schema, while `tier` is a custom token claim name emitted by extension logic. Both can coexist and are valid. | [SEC-ATTR-VS-CLAIM](#SEC-ATTR-VS-CLAIM) |
 | G-004 | Trigger equivalence | Draft provides trigger mapping table. POC currently validates only token issuance extension path; no implementation evidence for post-confirmation replacement workflows. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/docs/tutorial-custom-tier-claim-entra-external-id.md | Mark non-implemented mappings as architectural guidance, not tested POC behavior. | - |
-| G-005 | Local account migration | Draft includes JIT/forced-reset strategies. POC evidence is strong for social path; no implemented JIT password migration extension found in repo. | packages/docs/plan-migration.md, packages/backend/src/auth | Product docs align with article guidance: JIT and forced-reset style approaches are supported. Track this as not validated in this POC, not as an article defect. | [SEC-LOCAL-CRED-MIGRATION](#SEC-LOCAL-CRED-MIGRATION) |
+| G-005 | Local account migration | Draft includes JIT/forced-reset strategies. POC evidence is strong for social path; no implemented JIT password migration extension found in repo. | packages/docs/plan-migration.md, packages/backend/src/auth | Product docs align with article guidance. In this POC, forced password reset (forgot-password path) was tested; JIT remains untested implementation scope. | [SEC-LOCAL-CRED-MIGRATION](#SEC-LOCAL-CRED-MIGRATION) |
 | G-006 | Session migration | Draft suggests shortening Cognito refresh token lifetime before cutover. POC app is already MSAL-first and does not show a Cognito+MSAL bridge implementation. | packages/frontend/src/authConfig.ts, packages/frontend/src/main.tsx, packages/frontend/src/App.tsx | Add note that this guidance applies only if transition release still serves Cognito sessions. | - |
 | G-007 | Extension payload assumptions | Draft implies robust custom-logic carryover; POC notes token issuance payload may not contain rich role/group context for dynamic tiering. | packages/docs/engineering-tasks-happy-path 1.md, packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs | Add constraint note: dynamic role-derived claims may require extra data fetches and latency budget. | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
 | G-008 | JWKS validation nuance | Draft mentions issuer/JWKS switch generally. POC required app-qualified JWKS (`?appid=`) fallback due app-specific signing keys. | packages/backend/src/auth/cognito-token-verifier.service.ts | Add explicit troubleshooting note to avoid false 401 failures after custom claims provider setup. | [SEC-AADSTS50146](#SEC-AADSTS50146) |
@@ -155,7 +155,8 @@ Suggested sentence for the article:
 
 Validation result:
 - Microsoft product documentation confirms the article is correct to describe local-account credential migration options, including JIT migration and reset-based alternatives.
-- In this repo, social/federated path is the validated POC. Local password migration remains untested implementation scope.
+- In this repo, social/federated path is validated and local forced password reset was tested through forgot-password flow.
+- JIT password migration remains untested implementation scope in this POC.
 
 What the product docs support:
 - If users are social/federated only, credential migration can be skipped.
@@ -168,7 +169,11 @@ Portal discoverability note:
 
 Writer implication:
 - Keep current article guidance for local account migration.
-- Label local password migration sections as "not validated in this POC" rather than changing product guidance.
+- Clarify validation split: forced-reset path validated in this POC; JIT path not validated in this POC.
+- Keep forced password reset as the recommended default path for migrations where password preservation is not required.
+
+Suggested wording for the article:
+"Forced password reset (recommended): Migrate the user account without a password, mark the account for password reset on first sign-in, and let the user set a new password through the External ID self-service flow. This option is the simplest and most reliable path. It aligns the user with the External ID password policy from day one. Pair it with proactive communication (email) a few days before cutover so users aren't surprised."
 
 References:
 - Migrate users and credentials to External ID:
@@ -334,3 +339,4 @@ References:
 - Expanded G-003 deep-dive with explicit extension property naming requirements, portal visibility distinction, and Graph extensibility reference.
 - Added Microsoft-doc validation note that Graph can read `extension_{appId}_*` attributes via `GET /users` with `$select`, plus supporting links.
 - Reviewed Microsoft local-credential migration docs and updated G-005 as product-aligned (POC untested), with deep-dive anchor SEC-LOCAL-CRED-MIGRATION.
+- Updated G-005 based on latest POC result: forced-reset (forgot-password) path validated; JIT still untested in this repo.

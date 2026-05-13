@@ -58,6 +58,7 @@ public sealed class PretokenTierFunction
             var userPrincipalName = root?["data"]?["authenticationContext"]?["user"]?["userPrincipalName"]?.GetValue<string>();
 
             _logger.LogInformation("Using hardcoded tier value: {Tier}", tier);
+             _logger.LogInformation("TokenIssuanceStart payload raw: {PayloadSummary}", body);
             _logger.LogInformation("TokenIssuanceStart payload summary: {PayloadSummary}", payloadSummary);
             _logger.LogInformation("TokenIssuanceStart user context: userId={UserId}, userPrincipalName={UserPrincipalName}",
                 userId ?? "<none>",

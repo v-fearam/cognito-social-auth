@@ -12,7 +12,7 @@ Primary goal:
 
 ## Scope
 Source draft under review:
-- "Migrate from Amazon Cognito to Microsoft Entra External ID" (provided in chat)
+- "Migrate from Amazon Cognito to Microsoft Entra External ID"
 
 POC baseline in this repo:
 - Frontend migrated to MSAL

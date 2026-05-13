@@ -245,26 +245,14 @@ Recommendation for article:
 - Prefer app roles as the primary authorization model for app-calling-API scenarios.
 - Use security groups mapped to app roles in enterprise applications to simplify user administration.
 - Keep direct group-based authorization as an alternative pattern only when required.
-- Keep the groups-overage discussion, but clarify that it only appears when group claims are configured and the user exceeds the token limit.
 
 Why:
 - This matches current implementation in this repo (API guards evaluate `roles`).
 - It aligns with Microsoft guidance that app roles are the stable app-defined authorization boundary, while groups are useful for assignment scalability.
-- Your sample ID token includes a normal `groups` array because the user is only in a small number of groups; no overage condition was triggered.
-- Current Microsoft guidance still supports overage indicators, but the implicit-flow limit is documented as six groups, not five.
-
-Writer note on meaning:
-- If `groups` is present, the token fit the user's group list and the app can read those group IDs directly.
-- If `groups` is absent and `hasgroups` or `_claim_names` is present, the user has too many groups to fit in the token and the app must query Microsoft Graph for the full membership.
-- In this POC, `roles` is the primary authorization signal for the API; `groups` can still appear in tokens if group claims are configured, but the backend does not depend on them.
 
 Reference:
 - App roles vs groups:
     https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps#app-roles-vs-groups
-- Access token claims reference (groups overage):
-    https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference
-- Configure group claims and app roles in tokens (group overages):
-    https://learn.microsoft.com/en-us/security/zero-trust/develop/configure-tokens-group-claims-app-roles#group-overages
 
 <a id="SEC-ATTR-VS-CLAIM"></a>
 ### Entra extension attribute name vs emitted token claim name

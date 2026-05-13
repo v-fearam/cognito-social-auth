@@ -19,6 +19,7 @@ POC baseline in this repo:
 - Backend validates Entra tokens and authorizes by roles
 - Token enrichment extension implemented for tier claim
 - Cognito user export and migration runbooks documented
+- Migration execution runbook/script reference (Cognito read -> Entra External ID write via Microsoft Graph): https://github.com/v-fearam/cognito-social-auth/blob/entra-external-id/packages/docs/plan-migration.md
 
 ## Working Rules
 - Every gap row must include: clear gap statement, evidence in repo, and actionable validation notes.
@@ -41,6 +42,7 @@ POC baseline in this repo:
 | G-007 | AADSTS50146 signing-key resilience | Enabling custom claims provider without a valid app-specific signing key can trigger AADSTS50146 and block authentication until corrected. | packages/docs/tutorial-custom-tier-claim-entra-external-id.md, observed AADSTS50146 error payload | Add explicit precheck and rollback sequence: verify signing key before enabling extension; disable extension if outage occurs. Include troubleshooting steps to reduce false 401/invalid_request investigations. | [SEC-AADSTS50146](#SEC-AADSTS50146) |
 | G-008 | MFA coverage scope | Migration draft includes MFA migration guidance, but MFA was not exercised in this POC. This area cannot be validated from current implementation evidence. | POC scope notes in packages/docs/engineering-tasks-happy-path 1.md, current test evidence | Mark MFA section as "not validated in this POC" and add separate validation plan for TOTP/SMS scenarios. | [SEC-MFA-SCOPE](#SEC-MFA-SCOPE) |
 | G-009 | Access-token authorization mismatch | POC API enforces `roles` from access token. One test window showed access token with `scp` only (no `roles`) and 403; later tokens include `roles` and endpoint works. The roles need to be added in the app api app registration to be included on access token. | packages/backend/src/auth/viewer-group.guard.ts, packages/backend/src/app.controller.ts, observed token samples (May 2026) |  | [SEC-ACCESS-TOKEN-ROLES](#SEC-ACCESS-TOKEN-ROLES) |
+| G-010 | Access token audience claim semantics | Draft maps Entra access-token `aud` to Application ID URI. In this POC, v2 access token `aud` is the API client ID GUID (`6c959c17-63ba-4477-b66e-928d7d9ba937`). | Observed token sample (May 2026), packages/backend/src/auth/cognito-token-verifier.service.ts, Microsoft Learn claims docs | Update the claims mapping text: for Entra v2 access tokens, `aud` should be the API client ID (GUID). Keep Application ID URI guidance for scope/resource configuration and v1-compatible context only. | [SEC-AUD-V2-CLAIM](#SEC-AUD-V2-CLAIM) |
 
 ## Confirmed Alignments (POC vs draft)
 
@@ -54,6 +56,7 @@ POC baseline in this repo:
 ## Anchor Index
 - SEC-MFA-SCOPE -> MFA statement for writer
 - SEC-ACCESS-TOKEN-ROLES -> Access token missing roles: observed issue and recommendation
+- SEC-AUD-V2-CLAIM -> Access token audience (`aud`) semantics in Entra v2 tokens
 - SEC-PAYLOAD-REALITY -> OnTokenIssuanceStart payload reality (writer note)
 - SEC-AADSTS50146 -> AADSTS50146 outage prevention and rollback
 - SEC-AUTH-MODEL -> Authorization model recommendation (aligned with POC)
@@ -144,6 +147,26 @@ References:
     https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps#usage-scenario-of-app-roles
 - Access token claims reference:
     https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference
+
+<a id="SEC-AUD-V2-CLAIM"></a>
+### Access token audience (`aud`) semantics in Entra v2 tokens
+
+Observed in this POC:
+- Access token `aud` is the API client ID GUID (`6c959c17-63ba-4477-b66e-928d7d9ba937`), not the Application ID URI string.
+
+Validation against Microsoft documentation:
+- Microsoft Learn access token claims reference states `aud` can be Application ID URI or GUID in general, and explicitly clarifies that in v2.0 tokens it is the web API client ID.
+- Microsoft Learn claims validation guidance states the same: for v2.0 tokens, `aud` is the web API client ID (GUID); v1.0 may use app ID URI.
+
+Writer guidance:
+- Update the migration claim-mapping table so Entra v2 access-token audience uses API client ID (GUID).
+- Keep Application ID URI in scope/resource configuration guidance, but avoid stating it as the expected `aud` value for v2 tokens.
+
+References:
+- Access token claims reference:
+    https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference
+- Secure applications and APIs by validating claims (Validate the audience):
+    https://learn.microsoft.com/en-us/entra/identity-platform/claims-validation#validate-the-audience
 
 <a id="SEC-PAYLOAD-REALITY"></a>
 ### OnTokenIssuanceStart payload reality

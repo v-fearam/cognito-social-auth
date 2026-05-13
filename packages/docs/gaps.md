@@ -11,8 +11,7 @@ Primary goal:
 - Track decisions and updates throughout the day.
 
 ## Scope
-Source draft under review:
-- "Migrate from Amazon Cognito to Microsoft Entra External ID"
+Source draft under review
 
 POC baseline in this repo:
 - Frontend migrated to MSAL

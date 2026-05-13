@@ -272,31 +272,4 @@ References:
 - Microsoft Graph - Update user (manage extensions and associated data):
     https://learn.microsoft.com/en-us/graph/api/user-update?view=graph-rest-1.0
 
-## Validation Session Log
 
-### 2026-05-13
-- Created initial gap register from current POC implementation and docs.
-- Added eight initial gap items and four confirmed alignments.
-- Next pass: mark each gap as Validated or Closed with concrete wording changes for the migration draft.
-- Added G-009 for Cognito resource-server discoverability gap in the current AWS console UX.
-- Added writer-ready text and references to prevent confusion between concept validity and console navigation changes.
-- Reviewed PR #1 and branch diff against main; added PR-context gaps (G-010 to G-014) for documentation completeness, security hygiene, and config consistency.
-- Added G-015 for tooling preflight validation to reduce setup friction during migration execution.
-- Added G-016 (MFA out-of-scope for this POC) and G-017 (ID token roles present but API access token roles missing, causing 403).
-- Updated G-017 to Validated with latest token evidence showing roles restored in access token.
-- Added G-018 (TokenIssuanceStart payload lacks role/group claims), G-019 (Graph auth model guidance), and G-020 (AADSTS50146 resilience and rollback).
-- Updated G-002 to Validated with an app-roles-first recommendation and Microsoft reference (groups assigned to roles pattern).
-- Added a new Gap Register column, "Deep-dive section", to link each relevant gap to detailed analysis sections below (starting with G-002 and other high-impact items).
-- Added stable section anchors and an Anchor Index. Gap register deep-dive references now use anchor IDs to remain stable if section titles change.
-- Updated G-001 wording to reflect agreement with article dual-run guidance; kept as open only because dual-token acceptance has not been tested in this POC.
-- Updated G-003 with explicit storage-vs-token-claim clarification and added deep-dive anchor SEC-ATTR-VS-CLAIM.
-- Expanded G-003 deep-dive with explicit extension property naming requirements, portal visibility distinction, and Graph extensibility reference.
-- Added Microsoft-doc validation note that Graph can read `extension_{appId}_*` attributes via `GET /users` with `$select`, plus supporting links.
-- Reviewed Microsoft local-credential migration docs and updated G-005 as product-aligned (POC untested), with deep-dive anchor SEC-LOCAL-CRED-MIGRATION.
-- Updated G-005 based on latest POC result: forced-reset (forgot-password) path validated; JIT still untested in this repo.
-- Trimmed out-of-scope portal UX and prescriptive writer-content details from SEC-LOCAL-CRED-MIGRATION to keep this document focused on validation scope.
-- Verified G-004 trigger mapping against Microsoft Learn docs: trigger mapping is valid and correct. All trigger types (token issuance, attribute collection, OTP send, password submit, account recovery) are supported by Entra. Added deep-dive anchor SEC-TRIGGER-MAPPING with comprehensive trigger reference documentation and official Microsoft links.
-- Deleted G-006 (Session migration) and reordered Gap Register IDs sequentially from G-001 to G-019.
-- Merged Graph enrichment authentication guidance into the payload-constraints gap and removed the separate duplicate graph-auth gap entry; reordered subsequent IDs.
-- Merged TokenIssuanceStart payload limitation into the same payload/enrichment constraint gap (removed duplicate row) and renumbered trailing IDs.
-- Merged AADSTS50146 operational resilience into G-007 and removed the duplicate G-010 row; register now ends at G-009.

@@ -35,7 +35,7 @@ POC baseline in this repo:
 | G-001 | Cutover / Dual-run | Draft recommends API acceptance of Cognito and Entra tokens during dual-run. This guidance is conceptually correct; current POC implementation did not test dual-token acceptance yet. | packages/backend/src/auth/cognito-token-verifier.service.ts, packages/backend/src/auth/cognito-auth.guard.ts | Keep article guidance as-is. Track as POC validation gap only: dual issuer/token acceptance not tested yet. | - |
 | G-002 | Authorization claims | Draft discusses groups overage and Graph fallback. POC implements app roles (`roles`) guards and no groups-overage handling path. | packages/backend/src/auth/admin-group.guard.ts, packages/backend/src/auth/viewer-group.guard.ts, packages/docs/engineering-tasks-happy-path 1.md | Recommend app roles as primary model; use security groups assigned to app roles for scalable user administration. Keep groups-overage guidance as optional alternative path. | [SEC-AUTH-MODEL](#SEC-AUTH-MODEL) |
 | G-003 | Tier claim naming | Draft references Cognito `custom:*` mapping to Entra extension attributes. POC custom extension returns `tier` claim directly (not `extension_<appid>_*`). | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/frontend/src/App.tsx, packages/docs/plan-migration.md | Clarify that `extension_<appid>_*` is the directory storage schema, while `tier` is a custom token claim name emitted by extension logic. Both can coexist and are valid. | [SEC-ATTR-VS-CLAIM](#SEC-ATTR-VS-CLAIM) |
-| G-004 | Trigger equivalence | Draft provides trigger mapping table. POC currently validates only token issuance extension path; no implementation evidence for post-confirmation replacement workflows. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/docs/tutorial-custom-tier-claim-entra-external-id.md | Mark non-implemented mappings as architectural guidance, not tested POC behavior. | - |
+| G-004 | Trigger equivalence | Draft provides trigger mapping table. POC currently validates only token issuance extension path; no implementation evidence for post-confirmation replacement workflows. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/docs/tutorial-custom-tier-claim-entra-external-id.md | Trigger mapping is valid per Microsoft docs: Entra supports multiple extension event types (token issuance, attribute collection, OTP send, password submit, account recovery). POC tested only token issuance; other triggers not validated in this repo. | [SEC-TRIGGER-MAPPING](#SEC-TRIGGER-MAPPING) |
 | G-005 | Local account migration | Draft includes JIT/forced-reset strategies. POC evidence is strong for social path; no implemented JIT password migration extension found in repo. | packages/docs/plan-migration.md, packages/backend/src/auth | Product docs align with article guidance. In this POC, forced password reset (forgot-password path) was tested; JIT remains untested implementation scope. | [SEC-LOCAL-CRED-MIGRATION](#SEC-LOCAL-CRED-MIGRATION) |
 | G-006 | Session migration | Draft suggests shortening Cognito refresh token lifetime before cutover. POC app is already MSAL-first and does not show a Cognito+MSAL bridge implementation. | packages/frontend/src/authConfig.ts, packages/frontend/src/main.tsx, packages/frontend/src/App.tsx | Add note that this guidance applies only if transition release still serves Cognito sessions. | - |
 | G-007 | Extension payload assumptions | Draft implies robust custom-logic carryover; POC notes token issuance payload may not contain rich role/group context for dynamic tiering. | packages/docs/engineering-tasks-happy-path 1.md, packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs | Add constraint note: dynamic role-derived claims may require extra data fetches and latency budget. | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
@@ -79,6 +79,7 @@ POC baseline in this repo:
 - SEC-AUTH-MODEL -> Authorization model recommendation (aligned with POC)
 - SEC-ATTR-VS-CLAIM -> Entra extension attribute name vs emitted token claim name
 - SEC-LOCAL-CRED-MIGRATION -> Local credential migration support (product alignment)
+- SEC-TRIGGER-MAPPING -> Custom authentication extension trigger equivalence (product validation)
 
 <a id="SEC-COGNITO-RESOURCE-SERVERS"></a>
 ## Writer-Ready Clarification: Cognito Resource Servers vs New Console
@@ -169,7 +170,36 @@ References:
 - Just-in-time password migration to External ID:
     https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-migrate-passwords-just-in-time
 
-<a id="SEC-ACCESS-TOKEN-ROLES"></a>
+<a id="SEC-TRIGGER-MAPPING"></a>
+### Custom authentication extension trigger equivalence (product validation)
+
+Validation result:
+- The draft document's trigger mapping information is valid and supported by current Microsoft Entra External ID.
+- POC tested only one trigger type (token issuance); other trigger points are architecturally valid but not exercised in this repo.
+
+Supported custom authentication extension event types in Entra:
+- **Token issuance start** (`OnTokenIssuanceStart`) - Triggered when token is about to be issued; used for custom claims provider. ✓ **Tested in this POC**
+- **Attribute collection start** (`OnAttributeCollectionStart`) - Triggered before attribute collection page renders; allows prefilling and validation.
+- **Attribute collection submit** (`OnAttributeCollectionSubmit`) - Triggered after user submits attributes; allows post-submission validation and modification.
+- **One time passcode send** (`OnOtpSend`) - Triggered when OTP email is sent; allows custom email provider integration.
+- **Password submit** (`OnPasswordSubmit`) - Triggered during sign-in when password is submitted; used for JIT password migration from legacy IdP.
+- **Account recovery claim validation** (`OnVerifiedIdClaimValidation`) - Triggered during account recovery when Verified ID claims are presented.
+
+Writer implication:
+- Keep draft trigger mapping guidance as-is; it aligns with product capabilities.
+- For any trigger type not tested in this POC (all except token issuance), label as "architectural guidance, not validated in this POC implementation" rather than defective.
+
+References:
+- Custom authentication extensions overview (all trigger types listed):
+    https://learn.microsoft.com/en-us/entra/identity-platform/custom-extension-overview
+- Custom authentication extension resource types (Graph API):
+    https://learn.microsoft.com/en-us/graph/api/resources/customauthenticationextension
+- Token issuance start configuration:
+    https://learn.microsoft.com/en-us/entra/identity-platform/custom-extension-tokenissuancestart-configuration
+- Attribute collection start and submit:
+    https://learn.microsoft.com/en-us/entra/identity-platform/custom-extension-attribute-collection
+- OTP send custom email provider:
+    https://learn.microsoft.com/en-us/entra/identity-platform/custom-extension-email-otp-get-started
 ### Access token missing roles: observed issue and recommendation
 
 Observed behavior:
@@ -289,10 +319,11 @@ Internet validation (Microsoft docs):
 Example read pattern:
 - `GET https://graph.microsoft.com/v1.0/users/{id}?$select=displayName,extension_6145e4b94a8f437e948d0017b7885140_tier`
 
-Practical implication for writer:
+Practical implication:
 - Keep migration guidance about extension attribute naming for data storage and Graph operations.
 - Also document that token claim names can be normalized to business-friendly names (for example `tier`) by extension logic.
 - If a token claim is sourced from an extension attribute, explicitly document the mapping rule in the implementation notes.
+- Custom extension attributes are not received in the Azure Function payload; developers must query Microsoft Graph APIs to retrieve them.
 
 References:
 - External ID user attributes concept:
@@ -329,3 +360,4 @@ References:
 - Reviewed Microsoft local-credential migration docs and updated G-005 as product-aligned (POC untested), with deep-dive anchor SEC-LOCAL-CRED-MIGRATION.
 - Updated G-005 based on latest POC result: forced-reset (forgot-password) path validated; JIT still untested in this repo.
 - Trimmed out-of-scope portal UX and prescriptive writer-content details from SEC-LOCAL-CRED-MIGRATION to keep this document focused on validation scope.
+- Verified G-004 trigger mapping against Microsoft Learn docs: trigger mapping is valid and correct. All trigger types (token issuance, attribute collection, OTP send, password submit, account recovery) are supported by Entra. Added deep-dive anchor SEC-TRIGGER-MAPPING with comprehensive trigger reference documentation and official Microsoft links.

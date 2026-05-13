@@ -51,12 +51,6 @@ POC baseline in this repo:
 | A-003 | Token enrichment | Cognito pre-token Lambda pattern replicated with Entra TokenIssuanceStart extension + Azure Function. | packages/backend/src/auth/cognito-pretoken-lambda/index.mjs, packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/docs/tutorial-custom-tier-claim-entra-external-id.md |
 | A-004 | User migration groundwork | Cognito export and user migration runbook exists with social identity handling examples. | packages/docs/plan-migration.md, cognito-users-export.json, cognito-users-enriched.json |
 
-## Open Questions to Resolve Today
-- Should the final migration guide be strictly "Pattern 1 social-only" or keep local-account sections as optional appendices?
-- Do we want this POC to document dual-run API validation for both issuers, or keep single-issuer cutover guidance only?
-- Should the guide standardize on app roles as primary authorization recommendation and demote groups to alternative pattern?
-- Do we want to include a dedicated "Known implementation constraints" box for custom extension payload limits and timeout budget?
-
 ## Anchor Index
 - SEC-MFA-SCOPE -> MFA statement for writer
 - SEC-ACCESS-TOKEN-ROLES -> Access token missing roles: observed issue and recommendation

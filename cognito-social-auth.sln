@@ -1,0 +1,41 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "packages", "packages", "{809F86A1-1C4C-B159-0CD4-DF9D33D876CE}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "backend", "backend", "{AAFC1CB1-A711-957C-5886-ABBEC2DAAB9F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{CC863AA6-C3A1-FA0D-D434-F7F3A5188FA1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "auth", "auth", "{4210F861-F53F-133A-03AF-C918D8A12E3D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "pretoken-tier-function", "pretoken-tier-function", "{A573BCD8-61A5-82F3-8373-B8B76DB0470C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pretoken-tier", "packages\backend\src\auth\pretoken-tier-function\pretoken-tier.csproj", "{B8F23025-9400-9749-9155-6FC8CF553210}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B8F23025-9400-9749-9155-6FC8CF553210}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B8F23025-9400-9749-9155-6FC8CF553210}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B8F23025-9400-9749-9155-6FC8CF553210}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B8F23025-9400-9749-9155-6FC8CF553210}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{AAFC1CB1-A711-957C-5886-ABBEC2DAAB9F} = {809F86A1-1C4C-B159-0CD4-DF9D33D876CE}
+		{CC863AA6-C3A1-FA0D-D434-F7F3A5188FA1} = {AAFC1CB1-A711-957C-5886-ABBEC2DAAB9F}
+		{4210F861-F53F-133A-03AF-C918D8A12E3D} = {CC863AA6-C3A1-FA0D-D434-F7F3A5188FA1}
+		{A573BCD8-61A5-82F3-8373-B8B76DB0470C} = {4210F861-F53F-133A-03AF-C918D8A12E3D}
+		{B8F23025-9400-9749-9155-6FC8CF553210} = {A573BCD8-61A5-82F3-8373-B8B76DB0470C}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {42DCFB85-DDA8-4089-BA0C-C4C279EDF084}
+	EndGlobalSection
+EndGlobal

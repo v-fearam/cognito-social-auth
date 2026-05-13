@@ -38,19 +38,18 @@ POC baseline in this repo:
 | G-004 | Trigger equivalence | Draft provides trigger mapping table. POC currently validates only token issuance extension path; no implementation evidence for post-confirmation replacement workflows. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/docs/tutorial-custom-tier-claim-entra-external-id.md | Trigger mapping is valid per Microsoft docs: Entra supports multiple extension event types (token issuance, attribute collection, OTP send, password submit, account recovery). POC tested only token issuance; other triggers not validated in this repo. | [SEC-TRIGGER-MAPPING](#SEC-TRIGGER-MAPPING) |
 | G-005 | Local account migration | Draft includes JIT/forced-reset strategies. POC evidence is strong for social path; no implemented JIT password migration extension found in repo. | packages/docs/plan-migration.md, packages/backend/src/auth | Product docs align with article guidance. In this POC, forced password reset (forgot-password path) was tested; JIT remains untested implementation scope. | [SEC-LOCAL-CRED-MIGRATION](#SEC-LOCAL-CRED-MIGRATION) |
 | G-006 | Extension payload assumptions | Draft implies robust custom-logic carryover; POC notes token issuance payload may not contain rich role/group context for dynamic tiering. | packages/docs/engineering-tasks-happy-path 1.md, packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs | Add constraint note: dynamic role-derived claims may require extra data fetches and latency budget. | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
-| G-007 | JWKS validation nuance | app-specific signing keys. | packages/backend/src/auth/cognito-token-verifier.service.ts | explicit troubleshooting note to avoid false 401 failures after custom claims provider setup. I don't know what we do in the article | [SEC-AADSTS50146](#SEC-AADSTS50146) |
-| G-008 | Cognito scopes model clarity | Draft statements about Cognito custom scopes on resource servers are conceptually correct, but many readers in the current AWS console cannot easily find "Resource servers" and may conclude the model is outdated or wrong. | User validation against current console UI (May 2026), packages/docs/plan-migration.md | Add a short note that this feature still exists, plus updated navigation guidance and CLI fallback checks. | [SEC-COGNITO-RESOURCE-SERVERS](#SEC-COGNITO-RESOURCE-SERVERS) |
-| G-009 | PR narrative completeness | PR #1 has no structured description (goals, non-goals, validation evidence, rollback), which makes technical review and writer handoff harder. | GitHub PR #1 conversation metadata | Add a PR summary template section in docs with: scope, risks, test evidence, and post-merge actions. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
-| G-010 | Sensitive data in repository | User export files include personal data (email, social identifiers, group memberships) and are committed in the branch. This is risky for sharing and long-term retention. | cognito-users-enriched.json, cognito-users-export.json | Replace with sanitized samples, move real exports to secure storage, and document redaction policy. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
-| G-011 | Binary artifact in source control | The branch commits a generated deployment zip for Azure Function. Binary build artifacts reduce reviewability and create drift risk against source. | packages/backend/src/auth/pretoken-tier-function/pretoken-tier.zip | Remove binary from git and generate during CI/release with scripted packaging. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
-| G-012 | Configuration consistency | Documentation contains inconsistent SPA client IDs (`...8bfd1c` and `...8dfd1c`) across migration docs. This can break setup and reduce trust in instructions. | packages/docs/plan.md, packages/docs/engineering-tasks-happy-path 1.md, packages/docs/plan-migration.md, packages/frontend/.env.example | Define one canonical value source and run a consistency check before publishing. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
-| G-013 | Scope model decision clarity | PR migrates to roles-first authorization while migration text still discusses multiple patterns. Reader guidance should clearly choose primary path and optional alternatives. | packages/backend/src/auth/admin-group.guard.ts, packages/backend/src/auth/viewer-group.guard.ts, packages/docs/plan.md | Add a decision record: Primary = app roles; Alternative = groups with overage handling; include criteria. | [SEC-AUTH-MODEL](#SEC-AUTH-MODEL) |
-| G-014 | Tooling prerequisite friction | Migration runbook depends on AWS CLI, but setup may fail in contributor environments. Missing early precheck can block validation tasks and create false doc defects. | Terminal context (May 13, 2026: `aws --version` failed), packages/docs/plan-migration.md | Add preflight: verify aws, az, node, npm availability before task steps; include recovery links/commands. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
-| G-015 | MFA coverage scope | Migration draft includes MFA migration guidance, but MFA was not exercised in this POC. This area cannot be validated from current implementation evidence. | POC scope notes in packages/docs/engineering-tasks-happy-path 1.md, current test evidence | Mark MFA section as "not validated in this POC" and add separate validation plan for TOTP/SMS scenarios. | [SEC-MFA-SCOPE](#SEC-MFA-SCOPE) |
-| G-016 | Access-token authorization mismatch | POC API enforces `roles` from access token. One test window showed access token with `scp` only (no `roles`) and 403; later tokens include `roles` and endpoint works. This indicates configuration/propagation sensitivity that needs explicit troubleshooting guidance. | packages/backend/src/auth/viewer-group.guard.ts, packages/backend/src/app.controller.ts, observed token samples (May 2026) | Keep troubleshooting section and add note about assignment propagation + fresh token issuance after changes. | [SEC-ACCESS-TOKEN-ROLES](#SEC-ACCESS-TOKEN-ROLES) |
-| G-017 | TokenIssuanceStart payload limitation | OnTokenIssuanceStart payload observed in this POC includes user and app context but no role/group claims. Dynamic tier-by-role logic cannot rely only on callout payload fields. | Function logs in packages/docs/tutorial-custom-tier-claim-entra-external-id.md and observed payload samples | Document this as a platform behavior to design around (fallback claim, Graph lookup, or precomputed attribute). | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
-| G-018 | Graph enrichment authentication model | To enrich claims with custom attributes at token issuance time, function may need Graph lookup. Article should recommend secure app-to-app auth model and avoid user-interactive dependency assumptions. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, observed design notes | Prefer managed identity or confidential client credentials for Graph; avoid delegated user login dependency in extension runtime. | [SEC-GRAPH-AUTH](#SEC-GRAPH-AUTH) |
-| G-019 | AADSTS50146 operational resilience | Enabling custom claims provider without valid app-specific signing key triggers AADSTS50146 and can block auth until disabled/fixed. This should be documented as a known migration hazard with rollback steps. | packages/docs/tutorial-custom-tier-claim-entra-external-id.md, observed AADSTS50146 error payload | Add explicit precheck and rollback sequence: verify signing key before enabling extension; disable extension if outage occurs. | [SEC-AADSTS50146](#SEC-AADSTS50146) |
+| G-007 | JWKS validation nuance | app-specific signing keys. | packages/backend/src/auth/cognito-token-verifier.service.ts | explicit troubleshooting note to avoid false 401 failures after custom claims provider setup. I don't know what we should do in the article | [SEC-AADSTS50146](#SEC-AADSTS50146) |
+| G-008 | PR narrative completeness | PR #1 has no structured description (goals, non-goals, validation evidence, rollback), which makes technical review and writer handoff harder. | GitHub PR #1 conversation metadata | Add a PR summary template section in docs with: scope, risks, test evidence, and post-merge actions. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
+| G-009 | Sensitive data in repository | User export files include personal data (email, social identifiers, group memberships) and are committed in the branch. This is risky for sharing and long-term retention. | cognito-users-enriched.json, cognito-users-export.json | Replace with sanitized samples, move real exports to secure storage, and document redaction policy. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
+| G-010 | Binary artifact in source control | The branch commits a generated deployment zip for Azure Function. Binary build artifacts reduce reviewability and create drift risk against source. | packages/backend/src/auth/pretoken-tier-function/pretoken-tier.zip | Remove binary from git and generate during CI/release with scripted packaging. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
+| G-011 | Configuration consistency | Documentation contains inconsistent SPA client IDs (`...8bfd1c` and `...8dfd1c`) across migration docs. This can break setup and reduce trust in instructions. | packages/docs/plan.md, packages/docs/engineering-tasks-happy-path 1.md, packages/docs/plan-migration.md, packages/frontend/.env.example | Define one canonical value source and run a consistency check before publishing. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
+| G-012 | Scope model decision clarity | PR migrates to roles-first authorization while migration text still discusses multiple patterns. Reader guidance should clearly choose primary path and optional alternatives. | packages/backend/src/auth/admin-group.guard.ts, packages/backend/src/auth/viewer-group.guard.ts, packages/docs/plan.md | Add a decision record: Primary = app roles; Alternative = groups with overage handling; include criteria. | [SEC-AUTH-MODEL](#SEC-AUTH-MODEL) |
+| G-013 | Tooling prerequisite friction | Migration runbook depends on AWS CLI, but setup may fail in contributor environments. Missing early precheck can block validation tasks and create false doc defects. | Terminal context (May 13, 2026: `aws --version` failed), packages/docs/plan-migration.md | Add preflight: verify aws, az, node, npm availability before task steps; include recovery links/commands. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
+| G-014 | MFA coverage scope | Migration draft includes MFA migration guidance, but MFA was not exercised in this POC. This area cannot be validated from current implementation evidence. | POC scope notes in packages/docs/engineering-tasks-happy-path 1.md, current test evidence | Mark MFA section as "not validated in this POC" and add separate validation plan for TOTP/SMS scenarios. | [SEC-MFA-SCOPE](#SEC-MFA-SCOPE) |
+| G-015 | Access-token authorization mismatch | POC API enforces `roles` from access token. One test window showed access token with `scp` only (no `roles`) and 403; later tokens include `roles` and endpoint works. This indicates configuration/propagation sensitivity that needs explicit troubleshooting guidance. | packages/backend/src/auth/viewer-group.guard.ts, packages/backend/src/app.controller.ts, observed token samples (May 2026) | Keep troubleshooting section and add note about assignment propagation + fresh token issuance after changes. | [SEC-ACCESS-TOKEN-ROLES](#SEC-ACCESS-TOKEN-ROLES) |
+| G-016 | TokenIssuanceStart payload limitation | OnTokenIssuanceStart payload observed in this POC includes user and app context but no role/group claims. Dynamic tier-by-role logic cannot rely only on callout payload fields. | Function logs in packages/docs/tutorial-custom-tier-claim-entra-external-id.md and observed payload samples | Document this as a platform behavior to design around (fallback claim, Graph lookup, or precomputed attribute). | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
+| G-017 | Graph enrichment authentication model | To enrich claims with custom attributes at token issuance time, function may need Graph lookup. Article should recommend secure app-to-app auth model and avoid user-interactive dependency assumptions. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, observed design notes | Prefer managed identity or confidential client credentials for Graph; avoid delegated user login dependency in extension runtime. | [SEC-GRAPH-AUTH](#SEC-GRAPH-AUTH) |
+| G-018 | AADSTS50146 operational resilience | Enabling custom claims provider without valid app-specific signing key triggers AADSTS50146 and can block auth until disabled/fixed. This should be documented as a known migration hazard with rollback steps. | packages/docs/tutorial-custom-tier-claim-entra-external-id.md, observed AADSTS50146 error payload | Add explicit precheck and rollback sequence: verify signing key before enabling extension; disable extension if outage occurs. | [SEC-AADSTS50146](#SEC-AADSTS50146) |
 
 ## Confirmed Alignments (POC vs draft)
 
@@ -68,7 +67,6 @@ POC baseline in this repo:
 - Do we want to include a dedicated "Known implementation constraints" box for custom extension payload limits and timeout budget?
 
 ## Anchor Index
-- SEC-COGNITO-RESOURCE-SERVERS -> Writer-Ready Clarification: Cognito Resource Servers vs New Console
 - SEC-PR1-CONTEXT -> PR #1 Context Summary (main -> entra-external-id)
 - SEC-MFA-SCOPE -> MFA statement for writer
 - SEC-ACCESS-TOKEN-ROLES -> Access token missing roles: observed issue and recommendation
@@ -79,37 +77,6 @@ POC baseline in this repo:
 - SEC-ATTR-VS-CLAIM -> Entra extension attribute name vs emitted token claim name
 - SEC-LOCAL-CRED-MIGRATION -> Local credential migration support (product alignment)
 - SEC-TRIGGER-MAPPING -> Custom authentication extension trigger equivalence (product validation)
-
-<a id="SEC-COGNITO-RESOURCE-SERVERS"></a>
-## Writer-Ready Clarification: Cognito Resource Servers vs New Console
-
-### Why this needs clarification
-- The migration draft says Cognito custom API scopes are defined on resource servers.
-- That is still accurate in AWS Cognito, but the console UX changed and the navigation differs from older tutorials.
-- Readers can fail to find the menu and assume the article has an error.
-
-### Suggested wording for the migration article
-"Amazon Cognito still uses OAuth resource servers for custom API scopes. In the current AWS console, these settings might not appear where older tutorials show them. If you cannot find the Resource servers entry in the user pool UI, use the user pool Domain and App clients configuration paths documented by AWS, or verify existing configuration with CLI commands such as list-resource-servers and describe-user-pool-client."
-
-### Practical mapping note for readers
-- Cognito concept: Resource server identifier plus custom scopes (for example, api.read, api.write).
-- Entra concept: API app registration (Expose an API), Application ID URI, and delegated scopes.
-- Migration implication: Conceptual mapping is still valid even if your Cognito tenant did not use resource servers explicitly.
-
-### Validation checklist to include in article
-- Confirm whether the source Cognito app client requests only OIDC scopes (openid, profile, email) or also custom API scopes.
-- If only OIDC scopes are present, call this out and simplify migration steps (no custom scope migration needed).
-- If custom API scopes exist, map each Cognito custom scope to an Entra API scope under Expose an API.
-
-### References
-- AWS Cognito developer guide: Scopes, M2M, and resource servers
-    https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-define-resource-servers.html
-- AWS API reference: ListResourceServers
-    https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_ListResourceServers.html
-- AWS API reference: CreateResourceServer
-    https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_CreateResourceServer.html
-- Microsoft identity platform: Expose an API
-    https://learn.microsoft.com/entra/identity-platform/quickstart-configure-app-expose-web-apis
 
 <a id="SEC-PR1-CONTEXT"></a>
 ## PR #1 Context Summary (main -> entra-external-id)
@@ -295,7 +262,11 @@ Related information:
     https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes
 
 Repository evidence and summary:
-- Incident notes and reproduction context are documented in [packages/docs/tutorial-custom-tier-claim-entra-external-id.md](packages/docs/tutorial-custom-tier-claim-entra-external-id.md).
+- Full incident walkthrough is documented in [packages/docs/tutorial-custom-tier-claim-entra-external-id.md](packages/docs/tutorial-custom-tier-claim-entra-external-id.md).
+- The tutorial records the end-to-end flow used in this POC: `OnTokenIssuanceStart` extension calling Azure Function to inject `tier` claim.
+- It captures the AADSTS50146 failure condition observed after enabling custom claims provider flow.
+- It records the successful remediation path executed in the POC: configuring an application-specific token signing certificate on the SPA service principal via Microsoft Graph and setting the preferred signing thumbprint.
+- It includes command-level verification outputs used to confirm the service principal had active signing-key configuration after the change.
 
 <a id="SEC-AUTH-MODEL"></a>
 ### Authorization model recommendation (aligned with POC)

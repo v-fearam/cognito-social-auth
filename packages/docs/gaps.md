@@ -40,7 +40,7 @@ POC baseline in this repo:
 | G-006 | Extension payload assumptions | Draft implies robust custom-logic carryover; POC notes token issuance payload may not contain rich role/group context for dynamic tiering. | packages/docs/engineering-tasks-happy-path 1.md, packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs | Add constraint note: dynamic role-derived claims may require extra data fetches and latency budget. | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
 | G-007 | JWKS validation nuance | app-specific signing keys. | packages/backend/src/auth/cognito-token-verifier.service.ts | explicit troubleshooting note to avoid false 401 failures after custom claims provider setup. I don't know what we should do in the article | [SEC-AADSTS50146](#SEC-AADSTS50146) |
 | G-008 | MFA coverage scope | Migration draft includes MFA migration guidance, but MFA was not exercised in this POC. This area cannot be validated from current implementation evidence. | POC scope notes in packages/docs/engineering-tasks-happy-path 1.md, current test evidence | Mark MFA section as "not validated in this POC" and add separate validation plan for TOTP/SMS scenarios. | [SEC-MFA-SCOPE](#SEC-MFA-SCOPE) |
-| G-009 | Access-token authorization mismatch | POC API enforces `roles` from access token. One test window showed access token with `scp` only (no `roles`) and 403; later tokens include `roles` and endpoint works. This indicates configuration/propagation sensitivity that needs explicit troubleshooting guidance. | packages/backend/src/auth/viewer-group.guard.ts, packages/backend/src/app.controller.ts, observed token samples (May 2026) | Keep troubleshooting section and add note about assignment propagation + fresh token issuance after changes. | [SEC-ACCESS-TOKEN-ROLES](#SEC-ACCESS-TOKEN-ROLES) |
+| G-009 | Access-token authorization mismatch | POC API enforces `roles` from access token. One test window showed access token with `scp` only (no `roles`) and 403; later tokens include `roles` and endpoint works. The roles need to be added in the app api app registration to be included on access token. | packages/backend/src/auth/viewer-group.guard.ts, packages/backend/src/app.controller.ts, observed token samples (May 2026) |  | [SEC-ACCESS-TOKEN-ROLES](#SEC-ACCESS-TOKEN-ROLES) |
 | G-010 | TokenIssuanceStart payload limitation | OnTokenIssuanceStart payload observed in this POC includes user and app context but no role/group claims. Dynamic tier-by-role logic cannot rely only on callout payload fields. | Function logs in packages/docs/tutorial-custom-tier-claim-entra-external-id.md and observed payload samples | Document this as a platform behavior to design around (fallback claim, Graph lookup, or precomputed attribute). | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
 | G-011 | Graph enrichment authentication model | To enrich claims with custom attributes at token issuance time, function may need Graph lookup. Article should recommend secure app-to-app auth model and avoid user-interactive dependency assumptions. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, observed design notes | Prefer managed identity or confidential client credentials for Graph; avoid delegated user login dependency in extension runtime. | [SEC-GRAPH-AUTH](#SEC-GRAPH-AUTH) |
 | G-012 | AADSTS50146 operational resilience | Enabling custom claims provider without valid app-specific signing key triggers AADSTS50146 and can block auth until disabled/fixed. This should be documented as a known migration hazard with rollback steps. | packages/docs/tutorial-custom-tier-claim-entra-external-id.md, observed AADSTS50146 error payload | Add explicit precheck and rollback sequence: verify signing key before enabling extension; disable extension if outage occurs. | [SEC-AADSTS50146](#SEC-AADSTS50146) |
@@ -74,7 +74,7 @@ POC baseline in this repo:
 ## New Evaluation Notes (May 2026)
 
 <a id="SEC-MFA-SCOPE"></a>
-### MFA statement for writer
+### MFA statement
 - MFA exists in the migration draft but was not covered by this POC execution.
 - Recommendation: keep MFA guidance, but explicitly label it as outside current POC validation scope.
 
@@ -130,6 +130,8 @@ References:
     https://learn.microsoft.com/en-us/entra/identity-platform/custom-extension-attribute-collection
 - OTP send custom email provider:
     https://learn.microsoft.com/en-us/entra/identity-platform/custom-extension-email-otp-get-started
+
+
 ### Access token missing roles: observed issue and recommendation
 
 Observed behavior:
@@ -137,23 +139,12 @@ Observed behavior:
 - Access token for the API audience contains `scp: "read write"` but no `roles`.
 - Backend authorization guards require `roles` and return 403 when absent.
 
-Impact:
-- App sign-in appears successful, but API authorization fails for role-protected endpoints.
-
-Writer recommendation:
-- Add a dedicated troubleshooting callout for "roles present in ID token but missing in access token" in app-calling-API scenarios.
-
 Practical validation checklist for this issue:
 - Confirm app roles are defined on the API app registration (not only on SPA).
 - Confirm role assignments are applied in the API enterprise application (group-to-role mapping on API service principal).
 - Confirm the user is in the expected security group and the assignment is effective.
 - Confirm the frontend requests API scopes for the API audience and uses that access token for backend calls.
 - Force new token issuance after assignment changes (sign out/in) to avoid stale tokens.
-- Verify no claims customization/policy path suppresses default role emission for API access tokens.
-
-Potential mitigation guidance in article:
-- If API uses role-based authorization, check `roles` in access token.
-- If only delegated scopes are emitted, either fix role emission configuration or explicitly use `scp`-based authorization model for that API.
 
 References:
 - App roles vs groups:
@@ -162,10 +153,6 @@ References:
     https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps#usage-scenario-of-app-roles
 - Access token claims reference:
     https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference
-
-Update from latest evidence:
-- New token samples now show `roles` and `tier` in both ID token and API access token.
-- This suggests earlier 403 behavior was transitional/configuration-related, not a permanent platform limitation.
 
 <a id="SEC-PAYLOAD-REALITY"></a>
 ### OnTokenIssuanceStart payload reality

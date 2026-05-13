@@ -39,17 +39,11 @@ POC baseline in this repo:
 | G-005 | Local account migration | Draft includes JIT/forced-reset strategies. POC evidence is strong for social path; no implemented JIT password migration extension found in repo. | packages/docs/plan-migration.md, packages/backend/src/auth | Product docs align with article guidance. In this POC, forced password reset (forgot-password path) was tested; JIT remains untested implementation scope. | [SEC-LOCAL-CRED-MIGRATION](#SEC-LOCAL-CRED-MIGRATION) |
 | G-006 | Extension payload assumptions | Draft implies robust custom-logic carryover; POC notes token issuance payload may not contain rich role/group context for dynamic tiering. | packages/docs/engineering-tasks-happy-path 1.md, packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs | Add constraint note: dynamic role-derived claims may require extra data fetches and latency budget. | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
 | G-007 | JWKS validation nuance | app-specific signing keys. | packages/backend/src/auth/cognito-token-verifier.service.ts | explicit troubleshooting note to avoid false 401 failures after custom claims provider setup. I don't know what we should do in the article | [SEC-AADSTS50146](#SEC-AADSTS50146) |
-| G-008 | PR narrative completeness | PR #1 has no structured description (goals, non-goals, validation evidence, rollback), which makes technical review and writer handoff harder. | GitHub PR #1 conversation metadata | Add a PR summary template section in docs with: scope, risks, test evidence, and post-merge actions. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
-| G-009 | Sensitive data in repository | User export files include personal data (email, social identifiers, group memberships) and are committed in the branch. This is risky for sharing and long-term retention. | cognito-users-enriched.json, cognito-users-export.json | Replace with sanitized samples, move real exports to secure storage, and document redaction policy. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
-| G-010 | Binary artifact in source control | The branch commits a generated deployment zip for Azure Function. Binary build artifacts reduce reviewability and create drift risk against source. | packages/backend/src/auth/pretoken-tier-function/pretoken-tier.zip | Remove binary from git and generate during CI/release with scripted packaging. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
-| G-011 | Configuration consistency | Documentation contains inconsistent SPA client IDs (`...8bfd1c` and `...8dfd1c`) across migration docs. This can break setup and reduce trust in instructions. | packages/docs/plan.md, packages/docs/engineering-tasks-happy-path 1.md, packages/docs/plan-migration.md, packages/frontend/.env.example | Define one canonical value source and run a consistency check before publishing. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
-| G-012 | Scope model decision clarity | PR migrates to roles-first authorization while migration text still discusses multiple patterns. Reader guidance should clearly choose primary path and optional alternatives. | packages/backend/src/auth/admin-group.guard.ts, packages/backend/src/auth/viewer-group.guard.ts, packages/docs/plan.md | Add a decision record: Primary = app roles; Alternative = groups with overage handling; include criteria. | [SEC-AUTH-MODEL](#SEC-AUTH-MODEL) |
-| G-013 | Tooling prerequisite friction | Migration runbook depends on AWS CLI, but setup may fail in contributor environments. Missing early precheck can block validation tasks and create false doc defects. | Terminal context (May 13, 2026: `aws --version` failed), packages/docs/plan-migration.md | Add preflight: verify aws, az, node, npm availability before task steps; include recovery links/commands. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
-| G-014 | MFA coverage scope | Migration draft includes MFA migration guidance, but MFA was not exercised in this POC. This area cannot be validated from current implementation evidence. | POC scope notes in packages/docs/engineering-tasks-happy-path 1.md, current test evidence | Mark MFA section as "not validated in this POC" and add separate validation plan for TOTP/SMS scenarios. | [SEC-MFA-SCOPE](#SEC-MFA-SCOPE) |
-| G-015 | Access-token authorization mismatch | POC API enforces `roles` from access token. One test window showed access token with `scp` only (no `roles`) and 403; later tokens include `roles` and endpoint works. This indicates configuration/propagation sensitivity that needs explicit troubleshooting guidance. | packages/backend/src/auth/viewer-group.guard.ts, packages/backend/src/app.controller.ts, observed token samples (May 2026) | Keep troubleshooting section and add note about assignment propagation + fresh token issuance after changes. | [SEC-ACCESS-TOKEN-ROLES](#SEC-ACCESS-TOKEN-ROLES) |
-| G-016 | TokenIssuanceStart payload limitation | OnTokenIssuanceStart payload observed in this POC includes user and app context but no role/group claims. Dynamic tier-by-role logic cannot rely only on callout payload fields. | Function logs in packages/docs/tutorial-custom-tier-claim-entra-external-id.md and observed payload samples | Document this as a platform behavior to design around (fallback claim, Graph lookup, or precomputed attribute). | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
-| G-017 | Graph enrichment authentication model | To enrich claims with custom attributes at token issuance time, function may need Graph lookup. Article should recommend secure app-to-app auth model and avoid user-interactive dependency assumptions. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, observed design notes | Prefer managed identity or confidential client credentials for Graph; avoid delegated user login dependency in extension runtime. | [SEC-GRAPH-AUTH](#SEC-GRAPH-AUTH) |
-| G-018 | AADSTS50146 operational resilience | Enabling custom claims provider without valid app-specific signing key triggers AADSTS50146 and can block auth until disabled/fixed. This should be documented as a known migration hazard with rollback steps. | packages/docs/tutorial-custom-tier-claim-entra-external-id.md, observed AADSTS50146 error payload | Add explicit precheck and rollback sequence: verify signing key before enabling extension; disable extension if outage occurs. | [SEC-AADSTS50146](#SEC-AADSTS50146) |
+| G-008 | MFA coverage scope | Migration draft includes MFA migration guidance, but MFA was not exercised in this POC. This area cannot be validated from current implementation evidence. | POC scope notes in packages/docs/engineering-tasks-happy-path 1.md, current test evidence | Mark MFA section as "not validated in this POC" and add separate validation plan for TOTP/SMS scenarios. | [SEC-MFA-SCOPE](#SEC-MFA-SCOPE) |
+| G-009 | Access-token authorization mismatch | POC API enforces `roles` from access token. One test window showed access token with `scp` only (no `roles`) and 403; later tokens include `roles` and endpoint works. This indicates configuration/propagation sensitivity that needs explicit troubleshooting guidance. | packages/backend/src/auth/viewer-group.guard.ts, packages/backend/src/app.controller.ts, observed token samples (May 2026) | Keep troubleshooting section and add note about assignment propagation + fresh token issuance after changes. | [SEC-ACCESS-TOKEN-ROLES](#SEC-ACCESS-TOKEN-ROLES) |
+| G-010 | TokenIssuanceStart payload limitation | OnTokenIssuanceStart payload observed in this POC includes user and app context but no role/group claims. Dynamic tier-by-role logic cannot rely only on callout payload fields. | Function logs in packages/docs/tutorial-custom-tier-claim-entra-external-id.md and observed payload samples | Document this as a platform behavior to design around (fallback claim, Graph lookup, or precomputed attribute). | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
+| G-011 | Graph enrichment authentication model | To enrich claims with custom attributes at token issuance time, function may need Graph lookup. Article should recommend secure app-to-app auth model and avoid user-interactive dependency assumptions. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, observed design notes | Prefer managed identity or confidential client credentials for Graph; avoid delegated user login dependency in extension runtime. | [SEC-GRAPH-AUTH](#SEC-GRAPH-AUTH) |
+| G-012 | AADSTS50146 operational resilience | Enabling custom claims provider without valid app-specific signing key triggers AADSTS50146 and can block auth until disabled/fixed. This should be documented as a known migration hazard with rollback steps. | packages/docs/tutorial-custom-tier-claim-entra-external-id.md, observed AADSTS50146 error payload | Add explicit precheck and rollback sequence: verify signing key before enabling extension; disable extension if outage occurs. | [SEC-AADSTS50146](#SEC-AADSTS50146) |
 
 ## Confirmed Alignments (POC vs draft)
 
@@ -67,7 +61,6 @@ POC baseline in this repo:
 - Do we want to include a dedicated "Known implementation constraints" box for custom extension payload limits and timeout budget?
 
 ## Anchor Index
-- SEC-PR1-CONTEXT -> PR #1 Context Summary (main -> entra-external-id)
 - SEC-MFA-SCOPE -> MFA statement for writer
 - SEC-ACCESS-TOKEN-ROLES -> Access token missing roles: observed issue and recommendation
 - SEC-PAYLOAD-REALITY -> OnTokenIssuanceStart payload reality (writer note)
@@ -77,35 +70,6 @@ POC baseline in this repo:
 - SEC-ATTR-VS-CLAIM -> Entra extension attribute name vs emitted token claim name
 - SEC-LOCAL-CRED-MIGRATION -> Local credential migration support (product alignment)
 - SEC-TRIGGER-MAPPING -> Custom authentication extension trigger equivalence (product validation)
-
-<a id="SEC-PR1-CONTEXT"></a>
-## PR #1 Context Summary (main -> entra-external-id)
-
-PR reviewed:
-- https://github.com/v-fearam/cognito-social-auth/pull/1
-
-Branch delta observed:
-- 12 commits
-- 35 files changed
-- 2981 additions, 413 deletions
-- Core themes: frontend MSAL migration, backend Entra token validation, role-based authorization, custom claims extension, migration runbooks
-
-### Recommendations for writer-facing quality
-- Add a concise "What changed in this POC" section with 5 bullets and links to implementation files.
-- Add a "Not validated in this POC" section (for local-account JIT, full dual-run, post-confirmation alternatives).
-- Add a "Security and data handling" section that explicitly forbids committing raw user exports and generated binaries.
-- Add a "Configuration source of truth" table (tenant, app IDs, scope URI) to prevent cross-doc drift.
-
-### Suggested references to cite in migration narrative
-- PR context: https://github.com/v-fearam/cognito-social-auth/pull/1
-- AWS Cognito resource servers and custom scopes:
-    https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-define-resource-servers.html
-- AWS CLI list resource servers:
-    https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_ListResourceServers.html
-- Entra expose API scopes:
-    https://learn.microsoft.com/entra/identity-platform/quickstart-configure-app-expose-web-apis
-- Entra custom extensions overview:
-    https://learn.microsoft.com/entra/identity-platform/custom-extension-overview
 
 ## New Evaluation Notes (May 2026)
 

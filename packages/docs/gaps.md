@@ -38,7 +38,7 @@ POC baseline in this repo:
 | G-004 | Trigger equivalence | Draft provides trigger mapping table. POC currently validates only token issuance extension path; no implementation evidence for post-confirmation replacement workflows. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/docs/tutorial-custom-tier-claim-entra-external-id.md | Trigger mapping is valid per Microsoft docs: Entra supports multiple extension event types (token issuance, attribute collection, OTP send, password submit, account recovery). POC tested only token issuance; other triggers not validated in this repo. | [SEC-TRIGGER-MAPPING](#SEC-TRIGGER-MAPPING) |
 | G-005 | Local account migration | Draft includes JIT/forced-reset strategies. POC evidence is strong for social path; no implemented JIT password migration extension found in repo. | packages/docs/plan-migration.md, packages/backend/src/auth | Product docs align with article guidance. In this POC, forced password reset (forgot-password path) was tested; JIT remains untested implementation scope. | [SEC-LOCAL-CRED-MIGRATION](#SEC-LOCAL-CRED-MIGRATION) |
 | G-006 | Extension payload assumptions | Draft implies robust custom-logic carryover; POC notes token issuance payload may not contain rich role/group context for dynamic tiering. | packages/docs/engineering-tasks-happy-path 1.md, packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs | Add constraint note: dynamic role-derived claims may require extra data fetches and latency budget. | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
-| G-007 | JWKS validation nuance | Draft mentions issuer/JWKS switch generally. POC required app-qualified JWKS (`?appid=`) fallback due app-specific signing keys. | packages/backend/src/auth/cognito-token-verifier.service.ts | Add explicit troubleshooting note to avoid false 401 failures after custom claims provider setup. | [SEC-AADSTS50146](#SEC-AADSTS50146) |
+| G-007 | JWKS validation nuance | app-specific signing keys. | packages/backend/src/auth/cognito-token-verifier.service.ts | explicit troubleshooting note to avoid false 401 failures after custom claims provider setup. I don't know what we do in the article | [SEC-AADSTS50146](#SEC-AADSTS50146) |
 | G-008 | Cognito scopes model clarity | Draft statements about Cognito custom scopes on resource servers are conceptually correct, but many readers in the current AWS console cannot easily find "Resource servers" and may conclude the model is outdated or wrong. | User validation against current console UI (May 2026), packages/docs/plan-migration.md | Add a short note that this feature still exists, plus updated navigation guidance and CLI fallback checks. | [SEC-COGNITO-RESOURCE-SERVERS](#SEC-COGNITO-RESOURCE-SERVERS) |
 | G-009 | PR narrative completeness | PR #1 has no structured description (goals, non-goals, validation evidence, rollback), which makes technical review and writer handoff harder. | GitHub PR #1 conversation metadata | Add a PR summary template section in docs with: scope, risks, test evidence, and post-merge actions. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
 | G-010 | Sensitive data in repository | User export files include personal data (email, social identifiers, group memberships) and are committed in the branch. This is risky for sharing and long-term retention. | cognito-users-enriched.json, cognito-users-export.json | Replace with sanitized samples, move real exports to secure storage, and document redaction policy. | [SEC-PR1-CONTEXT](#SEC-PR1-CONTEXT) |
@@ -264,15 +264,38 @@ Writer recommendation:
 - Avoid designing this flow around a human user account and MFA prompts.
 
 <a id="SEC-AADSTS50146"></a>
-### AADSTS50146 outage prevention and rollback
+### AADSTS50146 incident context
 
-Writer recommendation:
-- Add explicit warning that custom claims provider enablement requires valid app-specific signing keys on service principals.
-- Add rollback runbook: if AADSTS50146 appears, disable extension/claims provider path to restore sign-in, then repair signing key configuration and re-enable.
+This section captures the observed authentication failure in the POC when custom claims provider flow was enabled.
 
-Reference:
-- Error code reference:
+Internal tracking:
+- ADO ticket: https://dev.azure.com/msft-skilling/Content/_workitems/edit/573454
+
+Observed error payload (reported by Federico Arambarri):
+
+```json
+{
+    "error": "invalid_request",
+    "error_description": "AADSTS50146: This application is required to be configured with an application-specific signing key. It is either not configured with one, or the key has expired or is not yet valid. Trace ID: 5bc15a95-15c3-45fb-8dd9-51773e100100 Correlation ID: 019e03f6-4314-7c6a-93b1-2a94da6c3a8e Timestamp: 2026-05-07 19:42:13Z",
+    "error_codes": [
+        50146
+    ],
+    "timestamp": "2026-05-07 19:42:13Z",
+    "trace_id": "5bc15a95-15c3-45fb-8dd9-51773e100100",
+    "correlation_id": "019e03f6-4314-7c6a-93b1-2a94da6c3a8e",
+    "error_uri": "https://cognitomigration.ciamlogin.com/error?code=50146"
+}
+```
+
+Related information:
+- Microsoft Q&A discussion: Issue with Azure Entra ID External Authentication: Error AADSTS50146
+- Customize app JSON Web Token (JWT) claims - Microsoft identity platform:
+    https://learn.microsoft.com/en-us/entra/identity-platform/jwt-claims-customization
+- Microsoft identity platform error code reference:
     https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes
+
+Repository evidence and summary:
+- Incident notes and reproduction context are documented in [packages/docs/tutorial-custom-tier-claim-entra-external-id.md](packages/docs/tutorial-custom-tier-claim-entra-external-id.md).
 
 <a id="SEC-AUTH-MODEL"></a>
 ### Authorization model recommendation (aligned with POC)

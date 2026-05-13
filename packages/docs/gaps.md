@@ -163,18 +163,6 @@ What the product docs support:
 - For local accounts, External ID supports staged credential migration, including JIT password migration using `OnPasswordSubmit` custom authentication extension.
 - JIT flow guidance includes migration-flag pattern and custom extension response actions (`MigratePassword`, `UpdatePassword`, `Retry`, `Block`).
 
-Portal discoverability note:
-- In the Entra admin UX, this may appear under custom authentication extensions and listener policy configuration rather than as a prominent "OnPasswordSubmit" label.
-- In Microsoft Graph examples, the same capability is often represented by object and payload types such as `onPasswordSubmitCustomExtension`, `onPasswordSubmitListener`, and `authenticationEvent.passwordSubmit`.
-
-Writer implication:
-- Keep current article guidance for local account migration.
-- Clarify validation split: forced-reset path validated in this POC; JIT path not validated in this POC.
-- Keep forced password reset as the recommended default path for migrations where password preservation is not required.
-
-Suggested wording for the article:
-"Forced password reset (recommended): Migrate the user account without a password, mark the account for password reset on first sign-in, and let the user set a new password through the External ID self-service flow. This option is the simplest and most reliable path. It aligns the user with the External ID password policy from day one. Pair it with proactive communication (email) a few days before cutover so users aren't surprised."
-
 References:
 - Migrate users and credentials to External ID:
     https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-migrate-users?tabs=graph
@@ -340,3 +328,4 @@ References:
 - Added Microsoft-doc validation note that Graph can read `extension_{appId}_*` attributes via `GET /users` with `$select`, plus supporting links.
 - Reviewed Microsoft local-credential migration docs and updated G-005 as product-aligned (POC untested), with deep-dive anchor SEC-LOCAL-CRED-MIGRATION.
 - Updated G-005 based on latest POC result: forced-reset (forgot-password) path validated; JIT still untested in this repo.
+- Trimmed out-of-scope portal UX and prescriptive writer-content details from SEC-LOCAL-CRED-MIGRATION to keep this document focused on validation scope.

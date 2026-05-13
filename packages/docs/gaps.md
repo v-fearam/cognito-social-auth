@@ -32,7 +32,7 @@ POC baseline in this repo:
 |---|---|---|---|---|---|
 | G-001 | Cutover / Dual-run | Draft recommends API acceptance of Cognito and Entra tokens during dual-run. This guidance is conceptually correct; current POC implementation did not test dual-token acceptance yet. | packages/backend/src/auth/cognito-token-verifier.service.ts, packages/backend/src/auth/cognito-auth.guard.ts | Keep article guidance as-is. Track as POC validation gap only: dual issuer/token acceptance not tested yet. | - |
 | G-002 | Authorization claims | Draft discusses groups overage and Graph fallback. POC implements app roles (`roles`) guards and no groups-overage handling path. | packages/backend/src/auth/admin-group.guard.ts, packages/backend/src/auth/viewer-group.guard.ts, packages/docs/engineering-tasks-happy-path 1.md | Recommend app roles as primary model; use security groups assigned to app roles for scalable user administration. Keep groups-overage guidance as optional alternative path. | [SEC-AUTH-MODEL](#SEC-AUTH-MODEL) |
-| G-003 | Tier claim naming | Draft references Cognito `custom:*` mapping to Entra extension attributes. POC custom extension returns `tier` claim directly (not `extension_<appid>_*`). | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/frontend/src/App.tsx | Document should distinguish extension-issued transient claim vs directory extension attributes. | - |
+| G-003 | Tier claim naming | Draft references Cognito `custom:*` mapping to Entra extension attributes. POC custom extension returns `tier` claim directly (not `extension_<appid>_*`). | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/frontend/src/App.tsx, packages/docs/plan-migration.md | Clarify that `extension_<appid>_*` is the directory storage schema, while `tier` is a custom token claim name emitted by extension logic. Both can coexist and are valid. | [SEC-ATTR-VS-CLAIM](#SEC-ATTR-VS-CLAIM) |
 | G-004 | Trigger equivalence | Draft provides trigger mapping table. POC currently validates only token issuance extension path; no implementation evidence for post-confirmation replacement workflows. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/docs/tutorial-custom-tier-claim-entra-external-id.md | Mark non-implemented mappings as architectural guidance, not tested POC behavior. | - |
 | G-005 | Local account migration | Draft includes JIT/forced-reset strategies. POC evidence is strong for social path; no implemented JIT password migration extension found in repo. | packages/docs/plan-migration.md, packages/backend/src/auth | Scope local-account section as optional and unvalidated in this POC. | - |
 | G-006 | Session migration | Draft suggests shortening Cognito refresh token lifetime before cutover. POC app is already MSAL-first and does not show a Cognito+MSAL bridge implementation. | packages/frontend/src/authConfig.ts, packages/frontend/src/main.tsx, packages/frontend/src/App.tsx | Add note that this guidance applies only if transition release still serves Cognito sessions. | - |
@@ -75,6 +75,7 @@ POC baseline in this repo:
 - SEC-GRAPH-AUTH -> Graph authentication model for extension callouts
 - SEC-AADSTS50146 -> AADSTS50146 outage prevention and rollback
 - SEC-AUTH-MODEL -> Authorization model recommendation (aligned with POC)
+- SEC-ATTR-VS-CLAIM -> Entra extension attribute name vs emitted token claim name
 
 <a id="SEC-COGNITO-RESOURCE-SERVERS"></a>
 ## Writer-Ready Clarification: Cognito Resource Servers vs New Console
@@ -239,6 +240,50 @@ Reference:
 - App roles vs groups:
     https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps#app-roles-vs-groups
 
+<a id="SEC-ATTR-VS-CLAIM"></a>
+### Entra extension attribute name vs emitted token claim name
+
+Clarification for G-003:
+- In Entra, custom user attributes are stored as extension properties using the Graph naming format `extension_{b2c-extensions-app-id-no-hyphens}_{attributeName}`.
+- The long prefix (for this tenant: `extension_6145e4b94a8f437e948d0017b7885140_`) is mandatory and cannot be shortened or renamed.
+- In this POC, the Azure Function returns a token claim named `tier` at TokenIssuanceStart.
+- These are different layers and both are valid:
+  - storage layer (directory attribute): `extension_<appid>_<name>`
+  - token layer (issued claim): `tier` (custom output name chosen by implementation)
+
+Feature distinction used in this POC:
+
+| Feature | What we use | Visible in portal? |
+|---|---|---|
+| **Directory extension properties** (`extension_{appId}_tier`) | Yes - set via Graph API `PATCH /users` | No - not shown in the default user properties page |
+| **Custom security attributes** | No - different feature | Yes - visible under user's Custom security attributes tab |
+
+Directory extension properties are managed via Microsoft Graph APIs, not the standard user-properties portal UI.
+
+Internet validation (Microsoft docs):
+- External ID custom attributes are added to the user object and can be called through Microsoft Graph API using `extension_{appId-without-hyphens}_{custom-attribute-name}`.
+- Microsoft Graph `GET /users/{id}` supports returning directory extensions when explicitly requested with `$select`.
+
+Example read pattern:
+- `GET https://graph.microsoft.com/v1.0/users/{id}?$select=displayName,extension_6145e4b94a8f437e948d0017b7885140_tier`
+
+Practical implication for writer:
+- Keep migration guidance about extension attribute naming for data storage and Graph operations.
+- Also document that token claim names can be normalized to business-friendly names (for example `tier`) by extension logic.
+- If a token claim is sourced from an extension attribute, explicitly document the mapping rule in the implementation notes.
+
+References:
+- External ID user attributes concept:
+    https://learn.microsoft.com/en-us/entra/external-id/customers/concept-user-attributes
+- Define custom attributes:
+    https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-define-custom-attributes
+- Add custom data to resources using extensions:
+    https://learn.microsoft.com/en-us/graph/extensibility-overview
+- Microsoft Graph - Get a user (directory extensions returned with `$select`):
+    https://learn.microsoft.com/en-us/graph/api/user-get?view=graph-rest-1.0
+- Microsoft Graph - Update user (manage extensions and associated data):
+    https://learn.microsoft.com/en-us/graph/api/user-update?view=graph-rest-1.0
+
 ## Validation Session Log
 
 ### 2026-05-13
@@ -256,3 +301,6 @@ Reference:
 - Added a new Gap Register column, "Deep-dive section", to link each relevant gap to detailed analysis sections below (starting with G-002 and other high-impact items).
 - Added stable section anchors and an Anchor Index. Gap register deep-dive references now use anchor IDs to remain stable if section titles change.
 - Updated G-001 wording to reflect agreement with article dual-run guidance; kept as open only because dual-token acceptance has not been tested in this POC.
+- Updated G-003 with explicit storage-vs-token-claim clarification and added deep-dive anchor SEC-ATTR-VS-CLAIM.
+- Expanded G-003 deep-dive with explicit extension property naming requirements, portal visibility distinction, and Graph extensibility reference.
+- Added Microsoft-doc validation note that Graph can read `extension_{appId}_*` attributes via `GET /users` with `$select`, plus supporting links.

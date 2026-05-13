@@ -42,7 +42,7 @@ POC baseline in this repo:
 | G-007 | AADSTS50146 signing-key resilience | Enabling custom claims provider without a valid app-specific signing key can trigger AADSTS50146 and block authentication until corrected. | packages/docs/tutorial-custom-tier-claim-entra-external-id.md, observed AADSTS50146 error payload | Add explicit precheck and rollback sequence: verify signing key before enabling extension; disable extension if outage occurs. Include troubleshooting steps to reduce false 401/invalid_request investigations. | [SEC-AADSTS50146](#SEC-AADSTS50146) |
 | G-008 | MFA coverage scope | Migration draft includes MFA migration guidance, but MFA was not exercised in this POC. This area cannot be validated from current implementation evidence. | POC scope notes in packages/docs/engineering-tasks-happy-path 1.md, current test evidence | Mark MFA section as "not validated in this POC" and add separate validation plan for TOTP/SMS scenarios. | [SEC-MFA-SCOPE](#SEC-MFA-SCOPE) |
 | G-009 | Access-token authorization mismatch | POC API enforces `roles` from access token. One test window showed access token with `scp` only (no `roles`) and 403; later tokens include `roles` and endpoint works. The roles need to be added in the app api app registration to be included on access token. | packages/backend/src/auth/viewer-group.guard.ts, packages/backend/src/app.controller.ts, observed token samples (May 2026) |  | [SEC-ACCESS-TOKEN-ROLES](#SEC-ACCESS-TOKEN-ROLES) |
-| G-010 | Access token audience claim semantics | Draft maps Entra access-token `aud` to Application ID URI. In this POC, v2 access token `aud` is the API client ID GUID (`6c959c17-63ba-4477-b66e-928d7d9ba937`). | Observed token sample (May 2026), packages/backend/src/auth/cognito-token-verifier.service.ts, Microsoft Learn claims docs | Update the claims mapping text: for Entra v2 access tokens, `aud` should be the API client ID (GUID). Keep Application ID URI guidance for scope/resource configuration and v1-compatible context only. | [SEC-AUD-V2-CLAIM](#SEC-AUD-V2-CLAIM) |
+| G-010 | Access token audience claim semantics | Draft audience mapping is too absolute. Entra v2 access-token `aud` is API client ID (GUID), while Cognito access tokens always include `client_id` and include `aud` only when resource binding is requested. | Observed token sample (May 2026), packages/backend/src/auth/cognito-token-verifier.service.ts, Microsoft Learn claims docs, AWS Cognito token docs | Update claims mapping text to reflect token-version/provider nuance: Entra v2 `aud` = API client ID GUID; Cognito access token uses `client_id` and optional `aud` (resource binding). | [SEC-AUD-V2-CLAIM](#SEC-AUD-V2-CLAIM) |
 
 ## Confirmed Alignments (POC vs draft)
 
@@ -56,7 +56,7 @@ POC baseline in this repo:
 ## Anchor Index
 - SEC-MFA-SCOPE -> MFA statement for writer
 - SEC-ACCESS-TOKEN-ROLES -> Access token missing roles: observed issue and recommendation
-- SEC-AUD-V2-CLAIM -> Access token audience (`aud`) semantics in Entra v2 tokens
+- SEC-AUD-V2-CLAIM -> Access-token audience semantics (Entra v2 and Cognito)
 - SEC-PAYLOAD-REALITY -> OnTokenIssuanceStart payload reality (writer note)
 - SEC-AADSTS50146 -> AADSTS50146 outage prevention and rollback
 - SEC-AUTH-MODEL -> Authorization model recommendation (aligned with POC)
@@ -149,24 +149,34 @@ References:
     https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference
 
 <a id="SEC-AUD-V2-CLAIM"></a>
-### Access token audience (`aud`) semantics in Entra v2 tokens
+### Access-token audience semantics (Entra v2 and Cognito)
 
 Observed in this POC:
-- Access token `aud` is the API client ID GUID (`6c959c17-63ba-4477-b66e-928d7d9ba937`), not the Application ID URI string.
+- Entra v2 access token `aud` is the API client ID GUID (`6c959c17-63ba-4477-b66e-928d7d9ba937`), not the Application ID URI string.
 
 Validation against Microsoft documentation:
-- Microsoft Learn access token claims reference states `aud` can be Application ID URI or GUID in general, and explicitly clarifies that in v2.0 tokens it is the web API client ID.
+- Microsoft Learn access token claims reference states `aud` can be Application ID URI or GUID in general, and clarifies that in v2.0 tokens it is the web API client ID.
 - Microsoft Learn claims validation guidance states the same: for v2.0 tokens, `aud` is the web API client ID (GUID); v1.0 may use app ID URI.
 
+Validation against AWS Cognito documentation:
+- Cognito access token claim reference states `client_id` identifies the app client and corresponds to ID-token `aud`.
+- Cognito access-token `aud` is optional and present only when resource binding is requested.
+
 Writer guidance:
-- Update the migration claim-mapping table so Entra v2 access-token audience uses API client ID (GUID).
-- Keep Application ID URI in scope/resource configuration guidance, but avoid stating it as the expected `aud` value for v2 tokens.
+- Update the migration claim-mapping table with provider/version nuance:
+  - Cognito access token: `client_id = app client ID`; `aud` may appear only with resource binding.
+  - Entra v2 access token: `aud = API client ID (GUID)`.
+- Keep Application ID URI in scope/resource configuration guidance, but do not state it as the universal runtime `aud` value.
 
 References:
-- Access token claims reference:
+- Microsoft access token claims reference:
     https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference
-- Secure applications and APIs by validating claims (Validate the audience):
+- Microsoft claims validation (Validate the audience):
     https://learn.microsoft.com/en-us/entra/identity-platform/claims-validation#validate-the-audience
+- AWS Cognito access token claims:
+    https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-access-token.html
+- AWS Cognito ID token claims:
+    https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-id-token.html
 
 <a id="SEC-PAYLOAD-REALITY"></a>
 ### OnTokenIssuanceStart payload reality
@@ -235,14 +245,26 @@ Recommendation for article:
 - Prefer app roles as the primary authorization model for app-calling-API scenarios.
 - Use security groups mapped to app roles in enterprise applications to simplify user administration.
 - Keep direct group-based authorization as an alternative pattern only when required.
+- Keep the groups-overage discussion, but clarify that it only appears when group claims are configured and the user exceeds the token limit.
 
 Why:
 - This matches current implementation in this repo (API guards evaluate `roles`).
 - It aligns with Microsoft guidance that app roles are the stable app-defined authorization boundary, while groups are useful for assignment scalability.
+- Your sample ID token includes a normal `groups` array because the user is only in a small number of groups; no overage condition was triggered.
+- Current Microsoft guidance still supports overage indicators, but the implicit-flow limit is documented as six groups, not five.
+
+Writer note on meaning:
+- If `groups` is present, the token fit the user's group list and the app can read those group IDs directly.
+- If `groups` is absent and `hasgroups` or `_claim_names` is present, the user has too many groups to fit in the token and the app must query Microsoft Graph for the full membership.
+- In this POC, `roles` is the primary authorization signal for the API; `groups` can still appear in tokens if group claims are configured, but the backend does not depend on them.
 
 Reference:
 - App roles vs groups:
     https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps#app-roles-vs-groups
+- Access token claims reference (groups overage):
+    https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference
+- Configure group claims and app roles in tokens (group overages):
+    https://learn.microsoft.com/en-us/security/zero-trust/develop/configure-tokens-group-claims-app-roles#group-overages
 
 <a id="SEC-ATTR-VS-CLAIM"></a>
 ### Entra extension attribute name vs emitted token claim name

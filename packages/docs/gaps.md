@@ -37,13 +37,10 @@ POC baseline in this repo:
 | G-003 | Tier claim naming | Draft references Cognito `custom:*` mapping to Entra extension attributes. POC custom extension returns `tier` claim directly (not `extension_<appid>_*`). | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/frontend/src/App.tsx, packages/docs/plan-migration.md | Clarify that `extension_<appid>_*` is the directory storage schema, while `tier` is a custom token claim name emitted by extension logic. Both can coexist and are valid. | [SEC-ATTR-VS-CLAIM](#SEC-ATTR-VS-CLAIM) |
 | G-004 | Trigger equivalence | Draft provides trigger mapping table. POC currently validates only token issuance extension path; no implementation evidence for post-confirmation replacement workflows. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/docs/tutorial-custom-tier-claim-entra-external-id.md | Trigger mapping is valid per Microsoft docs: Entra supports multiple extension event types (token issuance, attribute collection, OTP send, password submit, account recovery). POC tested only token issuance; other triggers not validated in this repo. | [SEC-TRIGGER-MAPPING](#SEC-TRIGGER-MAPPING) |
 | G-005 | Local account migration | Draft includes JIT/forced-reset strategies. POC evidence is strong for social path; no implemented JIT password migration extension found in repo. | packages/docs/plan-migration.md, packages/backend/src/auth | Product docs align with article guidance. In this POC, forced password reset (forgot-password path) was tested; JIT remains untested implementation scope. | [SEC-LOCAL-CRED-MIGRATION](#SEC-LOCAL-CRED-MIGRATION) |
-| G-006 | Extension payload assumptions | Draft implies robust custom-logic carryover; POC notes token issuance payload may not contain rich role/group context for dynamic tiering. | packages/docs/engineering-tasks-happy-path 1.md, packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs | Add constraint note: dynamic role-derived claims may require extra data fetches and latency budget. | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
-| G-007 | JWKS validation nuance | app-specific signing keys. | packages/backend/src/auth/cognito-token-verifier.service.ts | explicit troubleshooting note to avoid false 401 failures after custom claims provider setup. I don't know what we should do in the article | [SEC-AADSTS50146](#SEC-AADSTS50146) |
+| G-006 | Extension payload and enrichment auth model | Draft implies robust custom-logic carryover; in this POC, TokenIssuanceStart payload lacks role/group/custom-attribute context for dynamic tiering, and enrichment may require Graph lookup with secure non-interactive auth. | packages/docs/engineering-tasks-happy-path 1.md, packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/docs/tutorial-custom-tier-claim-entra-external-id.md | Add implementation constraint note: role-derived claims may require fallback/lookup path with latency budget, and Graph reads should use managed identity or confidential client credentials in extension runtime. | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
+| G-007 | AADSTS50146 signing-key resilience | Enabling custom claims provider without a valid app-specific signing key can trigger AADSTS50146 and block authentication until corrected. | packages/docs/tutorial-custom-tier-claim-entra-external-id.md, observed AADSTS50146 error payload | Add explicit precheck and rollback sequence: verify signing key before enabling extension; disable extension if outage occurs. Include troubleshooting steps to reduce false 401/invalid_request investigations. | [SEC-AADSTS50146](#SEC-AADSTS50146) |
 | G-008 | MFA coverage scope | Migration draft includes MFA migration guidance, but MFA was not exercised in this POC. This area cannot be validated from current implementation evidence. | POC scope notes in packages/docs/engineering-tasks-happy-path 1.md, current test evidence | Mark MFA section as "not validated in this POC" and add separate validation plan for TOTP/SMS scenarios. | [SEC-MFA-SCOPE](#SEC-MFA-SCOPE) |
 | G-009 | Access-token authorization mismatch | POC API enforces `roles` from access token. One test window showed access token with `scp` only (no `roles`) and 403; later tokens include `roles` and endpoint works. The roles need to be added in the app api app registration to be included on access token. | packages/backend/src/auth/viewer-group.guard.ts, packages/backend/src/app.controller.ts, observed token samples (May 2026) |  | [SEC-ACCESS-TOKEN-ROLES](#SEC-ACCESS-TOKEN-ROLES) |
-| G-010 | TokenIssuanceStart payload limitation | OnTokenIssuanceStart payload observed in this POC includes user and app context but no role/group claims. Dynamic tier-by-role logic cannot rely only on callout payload fields. | Function logs in packages/docs/tutorial-custom-tier-claim-entra-external-id.md and observed payload samples | Document this as a platform behavior to design around (fallback claim, Graph lookup, or precomputed attribute). | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
-| G-011 | Graph enrichment authentication model | To enrich claims with custom attributes at token issuance time, function may need Graph lookup. Article should recommend secure app-to-app auth model and avoid user-interactive dependency assumptions. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, observed design notes | Prefer managed identity or confidential client credentials for Graph; avoid delegated user login dependency in extension runtime. | [SEC-GRAPH-AUTH](#SEC-GRAPH-AUTH) |
-| G-012 | AADSTS50146 operational resilience | Enabling custom claims provider without valid app-specific signing key triggers AADSTS50146 and can block auth until disabled/fixed. This should be documented as a known migration hazard with rollback steps. | packages/docs/tutorial-custom-tier-claim-entra-external-id.md, observed AADSTS50146 error payload | Add explicit precheck and rollback sequence: verify signing key before enabling extension; disable extension if outage occurs. | [SEC-AADSTS50146](#SEC-AADSTS50146) |
 
 ## Confirmed Alignments (POC vs draft)
 
@@ -64,7 +61,6 @@ POC baseline in this repo:
 - SEC-MFA-SCOPE -> MFA statement for writer
 - SEC-ACCESS-TOKEN-ROLES -> Access token missing roles: observed issue and recommendation
 - SEC-PAYLOAD-REALITY -> OnTokenIssuanceStart payload reality (writer note)
-- SEC-GRAPH-AUTH -> Graph authentication model for extension callouts
 - SEC-AADSTS50146 -> AADSTS50146 outage prevention and rollback
 - SEC-AUTH-MODEL -> Authorization model recommendation (aligned with POC)
 - SEC-ATTR-VS-CLAIM -> Entra extension attribute name vs emitted token claim name
@@ -132,6 +128,7 @@ References:
     https://learn.microsoft.com/en-us/entra/identity-platform/custom-extension-email-otp-get-started
 
 
+<a id="SEC-ACCESS-TOKEN-ROLES"></a>
 ### Access token missing roles: observed issue and recommendation
 
 Observed behavior:
@@ -166,20 +163,15 @@ Writer guidance:
 - If tier depends on role or custom attributes, define one of these patterns explicitly:
   - deterministic mapping not requiring external lookup,
   - Graph lookup at runtime
+- If Graph lookup is required, use non-interactive workload identity from extension runtime.
+- Prefer managed identity when hosting model supports it; otherwise use confidential client credentials (app registration + certificate/secret) with least-privilege Graph application permissions.
+- Avoid user-interactive delegated auth assumptions for this callout path.
 
 References:
 - External ID user attributes concept:
     https://learn.microsoft.com/en-us/entra/external-id/customers/concept-user-attributes
 - Define custom attributes:
     https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-define-custom-attributes
-
-<a id="SEC-GRAPH-AUTH"></a>
-### Graph authentication model for extension callouts
-
-Writer recommendation:
-- For Graph reads from Azure Function extension runtime, use non-interactive workload identity.
-- Prefer managed identity when hosting model supports it; otherwise use confidential client credentials (app registration + certificate/secret) with least-privilege Graph application permissions.
-- Avoid designing this flow around a human user account and MFA prompts.
 
 <a id="SEC-AADSTS50146"></a>
 ### AADSTS50146 incident context
@@ -305,3 +297,6 @@ References:
 - Trimmed out-of-scope portal UX and prescriptive writer-content details from SEC-LOCAL-CRED-MIGRATION to keep this document focused on validation scope.
 - Verified G-004 trigger mapping against Microsoft Learn docs: trigger mapping is valid and correct. All trigger types (token issuance, attribute collection, OTP send, password submit, account recovery) are supported by Entra. Added deep-dive anchor SEC-TRIGGER-MAPPING with comprehensive trigger reference documentation and official Microsoft links.
 - Deleted G-006 (Session migration) and reordered Gap Register IDs sequentially from G-001 to G-019.
+- Merged Graph enrichment authentication guidance into the payload-constraints gap and removed the separate duplicate graph-auth gap entry; reordered subsequent IDs.
+- Merged TokenIssuanceStart payload limitation into the same payload/enrichment constraint gap (removed duplicate row) and renumbered trailing IDs.
+- Merged AADSTS50146 operational resilience into G-007 and removed the duplicate G-010 row; register now ends at G-009.

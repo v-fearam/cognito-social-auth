@@ -21,10 +21,12 @@ POC baseline in this repo:
 - Cognito user export and migration runbooks documented
 
 ## Working Rules
-- Every gap must include: severity, rationale, and repo evidence.
-- Use status values: Open, Validated, Blocked, Out of scope.
+- Every gap row must include: clear gap statement, evidence in repo, and actionable validation notes.
+- Severity and status are tracked in narrative context (validation notes and session log), not as separate table columns.
+- Use Deep-dive section links (anchor IDs) whenever additional detail exists below.
+- Keep anchor IDs stable; if a section title changes, keep the same anchor ID and update the Anchor Index if needed.
 - Update Last modified date each time this file changes.
-- Keep statements evidence-based and implementation-focused.
+- Keep statements evidence-based, implementation-focused, and reference-backed when possible.
 
 ## Gap Register
 
@@ -34,7 +36,7 @@ POC baseline in this repo:
 | G-002 | Authorization claims | Draft discusses groups overage and Graph fallback. POC implements app roles (`roles`) guards and no groups-overage handling path. | packages/backend/src/auth/admin-group.guard.ts, packages/backend/src/auth/viewer-group.guard.ts, packages/docs/engineering-tasks-happy-path 1.md | Recommend app roles as primary model; use security groups assigned to app roles for scalable user administration. Keep groups-overage guidance as optional alternative path. | [SEC-AUTH-MODEL](#SEC-AUTH-MODEL) |
 | G-003 | Tier claim naming | Draft references Cognito `custom:*` mapping to Entra extension attributes. POC custom extension returns `tier` claim directly (not `extension_<appid>_*`). | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/frontend/src/App.tsx, packages/docs/plan-migration.md | Clarify that `extension_<appid>_*` is the directory storage schema, while `tier` is a custom token claim name emitted by extension logic. Both can coexist and are valid. | [SEC-ATTR-VS-CLAIM](#SEC-ATTR-VS-CLAIM) |
 | G-004 | Trigger equivalence | Draft provides trigger mapping table. POC currently validates only token issuance extension path; no implementation evidence for post-confirmation replacement workflows. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/docs/tutorial-custom-tier-claim-entra-external-id.md | Mark non-implemented mappings as architectural guidance, not tested POC behavior. | - |
-| G-005 | Local account migration | Draft includes JIT/forced-reset strategies. POC evidence is strong for social path; no implemented JIT password migration extension found in repo. | packages/docs/plan-migration.md, packages/backend/src/auth | Scope local-account section as optional and unvalidated in this POC. | - |
+| G-005 | Local account migration | Draft includes JIT/forced-reset strategies. POC evidence is strong for social path; no implemented JIT password migration extension found in repo. | packages/docs/plan-migration.md, packages/backend/src/auth | Product docs align with article guidance: JIT and forced-reset style approaches are supported. Track this as not validated in this POC, not as an article defect. | [SEC-LOCAL-CRED-MIGRATION](#SEC-LOCAL-CRED-MIGRATION) |
 | G-006 | Session migration | Draft suggests shortening Cognito refresh token lifetime before cutover. POC app is already MSAL-first and does not show a Cognito+MSAL bridge implementation. | packages/frontend/src/authConfig.ts, packages/frontend/src/main.tsx, packages/frontend/src/App.tsx | Add note that this guidance applies only if transition release still serves Cognito sessions. | - |
 | G-007 | Extension payload assumptions | Draft implies robust custom-logic carryover; POC notes token issuance payload may not contain rich role/group context for dynamic tiering. | packages/docs/engineering-tasks-happy-path 1.md, packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs | Add constraint note: dynamic role-derived claims may require extra data fetches and latency budget. | [SEC-PAYLOAD-REALITY](#SEC-PAYLOAD-REALITY) |
 | G-008 | JWKS validation nuance | Draft mentions issuer/JWKS switch generally. POC required app-qualified JWKS (`?appid=`) fallback due app-specific signing keys. | packages/backend/src/auth/cognito-token-verifier.service.ts | Add explicit troubleshooting note to avoid false 401 failures after custom claims provider setup. | [SEC-AADSTS50146](#SEC-AADSTS50146) |
@@ -76,6 +78,7 @@ POC baseline in this repo:
 - SEC-AADSTS50146 -> AADSTS50146 outage prevention and rollback
 - SEC-AUTH-MODEL -> Authorization model recommendation (aligned with POC)
 - SEC-ATTR-VS-CLAIM -> Entra extension attribute name vs emitted token claim name
+- SEC-LOCAL-CRED-MIGRATION -> Local credential migration support (product alignment)
 
 <a id="SEC-COGNITO-RESOURCE-SERVERS"></a>
 ## Writer-Ready Clarification: Cognito Resource Servers vs New Console
@@ -146,6 +149,32 @@ Branch delta observed:
 
 Suggested sentence for the article:
 "MFA migration guidance is included for completeness, but MFA re-enrollment and SMS/TOTP behavior were not validated in this POC and should be tested in a dedicated pilot wave."
+
+<a id="SEC-LOCAL-CRED-MIGRATION"></a>
+### Local credential migration support (product alignment)
+
+Validation result:
+- Microsoft product documentation confirms the article is correct to describe local-account credential migration options, including JIT migration and reset-based alternatives.
+- In this repo, social/federated path is the validated POC. Local password migration remains untested implementation scope.
+
+What the product docs support:
+- If users are social/federated only, credential migration can be skipped.
+- For local accounts, External ID supports staged credential migration, including JIT password migration using `OnPasswordSubmit` custom authentication extension.
+- JIT flow guidance includes migration-flag pattern and custom extension response actions (`MigratePassword`, `UpdatePassword`, `Retry`, `Block`).
+
+Portal discoverability note:
+- In the Entra admin UX, this may appear under custom authentication extensions and listener policy configuration rather than as a prominent "OnPasswordSubmit" label.
+- In Microsoft Graph examples, the same capability is often represented by object and payload types such as `onPasswordSubmitCustomExtension`, `onPasswordSubmitListener`, and `authenticationEvent.passwordSubmit`.
+
+Writer implication:
+- Keep current article guidance for local account migration.
+- Label local password migration sections as "not validated in this POC" rather than changing product guidance.
+
+References:
+- Migrate users and credentials to External ID:
+    https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-migrate-users?tabs=graph
+- Just-in-time password migration to External ID:
+    https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-migrate-passwords-just-in-time
 
 <a id="SEC-ACCESS-TOKEN-ROLES"></a>
 ### Access token missing roles: observed issue and recommendation
@@ -304,3 +333,4 @@ References:
 - Updated G-003 with explicit storage-vs-token-claim clarification and added deep-dive anchor SEC-ATTR-VS-CLAIM.
 - Expanded G-003 deep-dive with explicit extension property naming requirements, portal visibility distinction, and Graph extensibility reference.
 - Added Microsoft-doc validation note that Graph can read `extension_{appId}_*` attributes via `GET /users` with `$select`, plus supporting links.
+- Reviewed Microsoft local-credential migration docs and updated G-005 as product-aligned (POC untested), with deep-dive anchor SEC-LOCAL-CRED-MIGRATION.

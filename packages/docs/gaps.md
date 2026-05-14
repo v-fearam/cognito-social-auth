@@ -94,10 +94,7 @@ Recommended references for the groups-overage section:
 <a id="SEC-MFA-SCOPE"></a>
 ### MFA statement
 - MFA exists in the migration draft but was not covered by this POC execution.
-- Recommendation: keep MFA guidance, but explicitly label it as outside current POC validation scope.
-
-Suggested sentence for the article:
-"MFA migration guidance is included for completeness, but MFA re-enrollment and SMS/TOTP behavior were not validated in this POC and should be tested in a dedicated pilot wave."
+- Recommendation: keep MFA guidance, but add good links that support the information.
 
 <a id="SEC-LOCAL-CRED-MIGRATION"></a>
 ### Local credential migration support (product alignment)

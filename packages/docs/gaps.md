@@ -33,7 +33,7 @@ POC baseline in this repo:
 
 | ID | Area | Gap statement | Evidence in repo | Validation notes | Deep-dive section |
 |---|---|---|---|---|---|
-| G-001 | Cutover / Dual-run | Draft recommends API acceptance of Cognito and Entra tokens during dual-run. This guidance is conceptually correct; current POC implementation did not test dual-token acceptance yet. | packages/backend/src/auth/cognito-token-verifier.service.ts, packages/backend/src/auth/cognito-auth.guard.ts | Keep article guidance as-is. Track as POC validation gap only: dual issuer/token acceptance not tested yet. | - |
+| G-001 | Cutover / Dual-run | Draft recommends API acceptance of Cognito and Entra tokens during dual-run. This is directionally correct, but wording is too simplified for implementation and can be misread as issuer-only validation. | packages/backend/src/auth/cognito-token-verifier.service.ts, packages/backend/src/auth/cognito-auth.guard.ts, Microsoft Learn ASP.NET JWT guidance, express-jwt/jose documentation | Keep dual-run guidance, but clarify implementation: validate each issuer with its own metadata/JWKS and enforce issuer + audience + signature checks. In ASP.NET Core, prefer separate JWT bearer schemes (or policy scheme) per issuer. In Node.js, use issuer-aware key selection when using `express-jwt` or `jose`. POC did not execute dual-token acceptance end-to-end. | [SEC-DUAL-ISSUER-VALIDATION](#SEC-DUAL-ISSUER-VALIDATION) |
 | G-002 | Authorization claims | Draft discusses groups overage and Graph fallback. POC implements app roles (`roles`) guards and no groups-overage handling path. Also, Entra `groups` claims are object IDs by default, not friendly group names, so values are environment-specific and should not be presented as stable business labels. | packages/backend/src/auth/admin-group.guard.ts, packages/backend/src/auth/viewer-group.guard.ts, packages/docs/engineering-tasks-happy-path 1.md, observed Entra ID token sample (May 2026) | Recommend app roles as primary model; use security groups assigned to app roles for scalable user administration. Keep groups-overage guidance as optional alternative path. Clarify that raw `groups` values are tenant-specific identifiers unless optional group-claim formatting is explicitly configured. | [SEC-AUTH-MODEL](#SEC-AUTH-MODEL) |
 | G-003 | Tier claim naming | Draft references Cognito `custom:*` mapping to Entra extension attributes. POC custom extension returns `tier` claim directly (not `extension_<appid>_*`). | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/frontend/src/App.tsx, packages/docs/plan-migration.md | Clarify that `extension_<appid>_*` is the directory storage schema, while `tier` is a custom token claim name emitted by extension logic. Both can coexist and are valid. | [SEC-ATTR-VS-CLAIM](#SEC-ATTR-VS-CLAIM) |
 | G-004 | Trigger equivalence | Draft provides trigger mapping table. POC currently validates only token issuance extension path; no implementation evidence for post-confirmation replacement workflows. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/docs/tutorial-custom-tier-claim-entra-external-id.md | Trigger mapping is valid per Microsoft docs: Entra supports multiple extension event types (token issuance, attribute collection, OTP send, password submit, account recovery). POC tested only token issuance; other triggers not validated in this repo. | [SEC-TRIGGER-MAPPING](#SEC-TRIGGER-MAPPING) |
@@ -44,21 +44,24 @@ POC baseline in this repo:
 | G-009 | Access-token authorization mismatch | POC API enforces `roles` from access token. One test window showed access token with `scp` only (no `roles`) and 403; later tokens include `roles` and endpoint works. The roles need to be added in the app api app registration to be included on access token. | packages/backend/src/auth/viewer-group.guard.ts, packages/backend/src/app.controller.ts, observed token samples (May 2026) |  | [SEC-ACCESS-TOKEN-ROLES](#SEC-ACCESS-TOKEN-ROLES) |
 | G-010 | Access token audience claim semantics | Draft audience mapping is too absolute. Entra v2 access-token `aud` is API client ID (GUID), while Cognito access tokens always include `client_id` and include `aud` only when resource binding is requested. | Observed token sample (May 2026), packages/backend/src/auth/cognito-token-verifier.service.ts, Microsoft Learn claims docs, AWS Cognito token docs | Update claims mapping text to reflect token-version/provider nuance: Entra v2 `aud` = API client ID GUID; Cognito access token uses `client_id` and optional `aud` (resource binding). | [SEC-AUD-V2-CLAIM](#SEC-AUD-V2-CLAIM) |
 | G-011 | Documentation evidence / citations | The draft frequently states Microsoft product behavior, limits, or implementation guidance without attaching a supporting official Microsoft Learn reference. This weakens technical confidence and makes future review harder. | Repeated pattern across draft sections: groups overage, claim mapping, trigger equivalence, social provider setup, token lifetime/session behavior | Add explicit source discipline: whenever the article asserts how Entra External ID or Microsoft identity platform behaves, attach the most specific current Microsoft Learn link that supports the statement. If the statement is based only on POC observation, label it as implementation observation rather than product fact. | [SEC-REFERENCE-DISCIPLINE](#SEC-REFERENCE-DISCIPLINE) |
+| G-012 | Frontend auth migration section quality | The draft frontend SDK mapping table is high-risk and quickly outdated. It can also be implementation-mismatched (this repo migrated from `react-oidc-context`, not Amplify SDK APIs). | `git show main:packages/frontend/src/main.tsx`, `git show main:packages/frontend/src/App.tsx`, packages/frontend/src/main.tsx, packages/frontend/src/App.tsx | Remove the per-method SDK mapping table from the section. Replace with implementation-specific narrative  and add official references to both MSAL APIs and Cognito/OIDC baseline docs. | [SEC-FRONTEND-MAPPING-TABLE](#SEC-FRONTEND-MAPPING-TABLE) |
 
 ## Confirmed Alignments (POC vs draft)
 
 | ID | Area | Confirmed point | Evidence in repo |
 |---|---|---|---|
-| A-001 | Frontend migration | Amplify/Cognito SDK replacement with MSAL flow is implemented. | packages/frontend/src/authConfig.ts, packages/frontend/src/main.tsx, packages/frontend/src/App.tsx |
+| A-001 | Frontend migration | Cognito OIDC client (`react-oidc-context`) replacement with MSAL flow is implemented. | packages/frontend/src/authConfig.ts, packages/frontend/src/main.tsx, packages/frontend/src/App.tsx, `git show main:packages/frontend/src/main.tsx`, `git show main:packages/frontend/src/App.tsx` |
 | A-002 | API token validation | API validates Entra issuer/audience and checks `roles`, `oid`, `scp`-style model. | packages/backend/src/auth/cognito-token-verifier.service.ts, packages/backend/src/app.controller.ts |
 | A-003 | Token enrichment | Cognito pre-token Lambda pattern replicated with Entra TokenIssuanceStart extension + Azure Function. | packages/backend/src/auth/cognito-pretoken-lambda/index.mjs, packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/docs/tutorial-custom-tier-claim-entra-external-id.md |
 | A-004 | User migration groundwork | Cognito export and user migration runbook exists with social identity handling examples. | packages/docs/plan-migration.md, cognito-users-export.json, cognito-users-enriched.json |
 
 ## Anchor Index
 - SEC-REFERENCE-DISCIPLINE -> Cross-cutting writer guidance for reference-backed Microsoft product assertions
+- SEC-DUAL-ISSUER-VALIDATION -> Dual-run token validation wording and implementation note
 - SEC-MFA-SCOPE -> MFA statement for writer
 - SEC-ACCESS-TOKEN-ROLES -> Access token missing roles: observed issue and recommendation
 - SEC-AUD-V2-CLAIM -> Access-token audience semantics (Entra v2 and Cognito)
+- SEC-FRONTEND-MAPPING-TABLE -> Recommendation to remove fragile frontend SDK mapping table and use implementation-specific guidance with references
 - SEC-PAYLOAD-REALITY -> OnTokenIssuanceStart payload reality (writer note)
 - SEC-AADSTS50146 -> AADSTS50146 outage prevention and rollback
 - SEC-AUTH-MODEL -> Authorization model recommendation (aligned with POC)
@@ -90,6 +93,37 @@ Recommended references for the groups-overage section:
     https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference
 - Configure group claims for applications by using Microsoft Entra ID (200 JWT / 150 SAML limits, groups assigned to application, recommendation to use app roles):
     https://learn.microsoft.com/en-us/entra/identity/hybrid/connect/how-to-connect-fed-group-claims
+
+<a id="SEC-DUAL-ISSUER-VALIDATION"></a>
+### Dual-run token validation wording (Cognito + External ID)
+
+Validation result:
+- The draft statement is conceptually correct (an API can accept both Cognito and External ID tokens during migration).
+- The sentence is too brief and can imply that accepting multiple issuers alone is enough.
+
+Why this matters:
+- Safe JWT validation requires more than issuer matching.
+- During dual-run, each token source should be validated with its own trust configuration (metadata/JWKS), plus issuer and audience checks.
+
+Guidance:
+- Keep the dual-run recommendation, but use implementation-safe wording.
+- For ASP.NET Core, describe multiple JWT bearer schemes (or a policy scheme) so each issuer has its own authority/metadata and validation settings.
+- For Node.js, describe issuer-aware key resolution for `express-jwt` or `jose`.
+
+Suggested replacement sentence for the article:
+"During migration, an API might need to accept access tokens from both Cognito and External ID. Configure token validation per issuer: for each issuer, validate signature using the correct metadata/JWKS and enforce expected issuer and audience. In ASP.NET Core, use separate JWT bearer schemes (or a policy scheme); in Node.js, use issuer-aware key selection with `express-jwt` or `jose`."
+
+References:
+- ASP.NET Core JWT bearer authentication (explicit validation, multi-issuer patterns):
+    https://learn.microsoft.com/en-us/aspnet/core/security/authentication/configure-jwt-bearer-authentication
+- ASP.NET Core multiple authentication schemes:
+    https://learn.microsoft.com/en-us/aspnet/core/security/authorization/limitingidentitybyscheme
+- Protected web API with Microsoft.Identity.Web:
+    https://learn.microsoft.com/en-us/entra/identity-platform/scenario-protected-web-api-app-configuration#microsoftidentityweb
+- express-jwt (issuer validation and dynamic key retrieval):
+    https://github.com/auth0/express-jwt
+- jose (JWT verify and remote JWKS):
+    https://github.com/panva/jose
 
 <a id="SEC-MFA-SCOPE"></a>
 ### MFA statement
@@ -199,6 +233,33 @@ References:
     https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-access-token.html
 - AWS Cognito ID token claims:
     https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-id-token.html
+
+<a id="SEC-FRONTEND-MAPPING-TABLE"></a>
+### Recommendation: remove frontend SDK mapping table
+
+Validation result:
+- The draft table that maps frontend SDK methods is too easy to become outdated.
+- It can also be incorrect for a specific implementation baseline.
+- In this repo, the baseline is Cognito with `react-oidc-context`, not Amplify `Auth.*` APIs.
+
+Writer guidance:
+- Remove the per-method SDK mapping table from the frontend migration section.
+- Keep generic product statements minimal and always reference official docs.
+
+
+Recommended references:
+- MSAL Browser login APIs:
+    https://learn.microsoft.com/en-us/entra/msal/javascript/browser/login-user
+- MSAL Browser acquire token APIs:
+    https://learn.microsoft.com/en-us/entra/msal/javascript/browser/acquire-token
+- MSAL Browser logout APIs:
+    https://learn.microsoft.com/en-us/entra/msal/javascript/browser/logout
+- MSAL Browser account APIs:
+    https://learn.microsoft.com/en-us/entra/msal/javascript/browser/accounts
+- MSAL React hooks:
+    https://learn.microsoft.com/en-us/entra/msal/javascript/react/hooks
+- Cognito user pool app integration (OIDC/OAuth baseline concepts):
+    https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-app-integration.html
 
 <a id="SEC-PAYLOAD-REALITY"></a>
 ### OnTokenIssuanceStart payload reality

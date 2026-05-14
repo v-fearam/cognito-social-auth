@@ -52,7 +52,7 @@ POC baseline in this repo:
 | ID | Area | Editorial issue | Suggested rewrite |
 |---|---|---|---|
 | E-001 | Verification section wording | This is not a technical gap; it is an edit-quality issue. The draft says: "API authorization boundaries: A user in the \"viewer\" group can read but not write. A user in \"admin\" can do both. Same test you had for Cognito, re-run against the Entra tokens." However, `viewer` and `admin` are not defined in that section, and application-specific role/group setup details are not described there. | "API authorization boundaries: Re-run the same authorization tests you used with Cognito, now using Entra-issued access tokens. Verify that the read-only test identity is denied write operations, and that the elevated test identity can perform both read and write operations, according to your app's configured roles or groups." |
-| E-002 | Section scope (functional vs non-functional testing) | This is not a technical gap; it is an edit-scope issue. The sentence "Pre-production load test: Drive a realistic sign-in rate through the new tenant. Watch for throttling, custom extension timeouts, and tail latency." is correct as part of assessment/non-functional validation, but it does not belong under "Verify authentication flows and API authorization". | Keep the sentence, but move it from the authentication/authorization verification section to an assessment section such as "Performance and resilience validation" or "Pre-production non-functional testing." |
+| E-002 | Section scope (functional vs non-functional testing) | This is not a technical gap; it is an edit-scope issue. The sentence "Pre-production load test: Drive a realistic sign-in rate through the new tenant. Watch for throttling, custom extension timeouts, and tail latency." is correct as part of assessment/non-functional validation, but it does not belong under "Verify authentication flows and API authorization". | Remove it from the authentication/authorization verification section" |
 | E-003 | Migration section completeness (Step 3) | This is not a technical gap; it is an editorial completeness issue. The draft mentions downstream dependencies risk (CloudWatch alarms on Cognito events, EventBridge rules triggered by Cognito, third-party webhook analytics, and SNS/SQS notifications tied to the user pool), but this is not explicitly called out in migration section Step 3. | Add a writer-attention note in migration Step 3: "Before decommissioning Cognito, inventory and migrate downstream event consumers (CloudWatch alarms, EventBridge rules, third-party webhooks, SNS/SQS notifications) to equivalent sources in the new identity architecture. Validate they continue to receive expected events to avoid silent breakage." |
 
 ## Confirmed Alignments (POC vs draft)
@@ -96,6 +96,7 @@ Writer guidance:
 
 Concrete example: groups overage section
 - The draft currently makes several strong statements about Entra group overage behavior with no adjacent supporting citation.
+- Register applications and configure user flows, a lot of task could have links like Register the client app, Create a user flow or add the API scopes under API permissions.
 - Add Microsoft Learn references that support both the overage mechanics.
 
 Recommended references for the groups-overage section:
@@ -175,8 +176,7 @@ Supported custom authentication extension event types in Entra:
 - **Account recovery claim validation** (`OnVerifiedIdClaimValidation`) - Triggered during account recovery when Verified ID claims are presented.
 
 Writer implication:
-- Keep draft trigger mapping guidance as-is; it aligns with product capabilities.
-- For any trigger type not tested in this POC (all except token issuance), label as "architectural guidance, not validated in this POC implementation" rather than defective.
+- Keep draft trigger mapping guidance as-is; it aligns with product capabilities. Maybe add some references, if it is needed.
 
 References:
 - Custom authentication extensions overview (all trigger types listed):
@@ -381,7 +381,6 @@ Observed token behavior in this POC:
 Writer implication:
 - Do not describe Entra `groups` claims as if they normally carry readable names like `admin` or `viewer`.
 - Clarify that, by default, `groups` contains group object IDs.
-- If the article wants readable group values, document that this requires explicit optional-claims configuration and has limitations.
 - Avoid examples that imply a group ID from test or dev is portable across environments.
 
 References:
@@ -425,7 +424,6 @@ Practical implication:
 - Keep migration guidance about extension attribute naming for data storage and Graph operations.
 - For apps using authorization code flow, user flows can include selected custom user attributes directly in the ID token.
 - Also document that token claim names can be normalized to business-friendly names (for example `tier`) by extension logic.
-- If a token claim is sourced from an extension attribute, explicitly document the mapping rule in the implementation notes.
 - Custom extension attributes are not received in the Azure Function payload; developers must query Microsoft Graph APIs to retrieve them.
 
 References:

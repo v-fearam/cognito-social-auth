@@ -34,7 +34,7 @@ POC baseline in this repo:
 | ID | Area | Gap statement | Evidence in repo | Validation notes | Deep-dive section |
 |---|---|---|---|---|---|
 | G-001 | Cutover / Dual-run | Draft recommends API acceptance of Cognito and Entra tokens during dual-run. This guidance is conceptually correct; current POC implementation did not test dual-token acceptance yet. | packages/backend/src/auth/cognito-token-verifier.service.ts, packages/backend/src/auth/cognito-auth.guard.ts | Keep article guidance as-is. Track as POC validation gap only: dual issuer/token acceptance not tested yet. | - |
-| G-002 | Authorization claims | Draft discusses groups overage and Graph fallback. POC implements app roles (`roles`) guards and no groups-overage handling path. | packages/backend/src/auth/admin-group.guard.ts, packages/backend/src/auth/viewer-group.guard.ts, packages/docs/engineering-tasks-happy-path 1.md | Recommend app roles as primary model; use security groups assigned to app roles for scalable user administration. Keep groups-overage guidance as optional alternative path. | [SEC-AUTH-MODEL](#SEC-AUTH-MODEL) |
+| G-002 | Authorization claims | Draft discusses groups overage and Graph fallback. POC implements app roles (`roles`) guards and no groups-overage handling path. Also, Entra `groups` claims are object IDs by default, not friendly group names, so values are environment-specific and should not be presented as stable business labels. | packages/backend/src/auth/admin-group.guard.ts, packages/backend/src/auth/viewer-group.guard.ts, packages/docs/engineering-tasks-happy-path 1.md, observed Entra ID token sample (May 2026) | Recommend app roles as primary model; use security groups assigned to app roles for scalable user administration. Keep groups-overage guidance as optional alternative path. Clarify that raw `groups` values are tenant-specific identifiers unless optional group-claim formatting is explicitly configured. | [SEC-AUTH-MODEL](#SEC-AUTH-MODEL) |
 | G-003 | Tier claim naming | Draft references Cognito `custom:*` mapping to Entra extension attributes. POC custom extension returns `tier` claim directly (not `extension_<appid>_*`). | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/frontend/src/App.tsx, packages/docs/plan-migration.md | Clarify that `extension_<appid>_*` is the directory storage schema, while `tier` is a custom token claim name emitted by extension logic. Both can coexist and are valid. | [SEC-ATTR-VS-CLAIM](#SEC-ATTR-VS-CLAIM) |
 | G-004 | Trigger equivalence | Draft provides trigger mapping table. POC currently validates only token issuance extension path; no implementation evidence for post-confirmation replacement workflows. | packages/backend/src/auth/pretoken-tier-function/PretokenTierFunction.cs, packages/docs/tutorial-custom-tier-claim-entra-external-id.md | Trigger mapping is valid per Microsoft docs: Entra supports multiple extension event types (token issuance, attribute collection, OTP send, password submit, account recovery). POC tested only token issuance; other triggers not validated in this repo. | [SEC-TRIGGER-MAPPING](#SEC-TRIGGER-MAPPING) |
 | G-005 | Local account migration | Draft includes JIT/forced-reset strategies. POC evidence is strong for social path; no implemented JIT password migration extension found in repo. | packages/docs/plan-migration.md, packages/backend/src/auth | Product docs align with article guidance. In this POC, forced password reset (forgot-password path) was tested; JIT remains untested implementation scope. | [SEC-LOCAL-CRED-MIGRATION](#SEC-LOCAL-CRED-MIGRATION) |
@@ -275,7 +275,24 @@ Why:
 - This matches current implementation in this repo (API guards evaluate `roles`).
 - It aligns with Microsoft guidance that app roles are the stable app-defined authorization boundary, while groups are useful for assignment scalability.
 
-Reference:
+Observed token behavior in this POC:
+- The ID token `groups` claim contains Microsoft Entra group object IDs such as `68111139-64f5-4c57-9998-6d19af1be656`, not friendly names such as `admin`.
+- Those group object IDs are tenant-specific, so the same conceptual group in another environment would normally have a different value.
+- In the same token, the `roles` claim carries the stable business value `admin`, which is more suitable for app authorization logic and article examples.
+
+Writer implication:
+- Do not describe Entra `groups` claims as if they normally carry readable names like `admin` or `viewer`.
+- Clarify that, by default, `groups` contains group object IDs.
+- If the article wants readable group values, document that this requires explicit optional-claims configuration and has limitations.
+- Avoid examples that imply a group ID from test or dev is portable across environments.
+
+References:
+- Access token claims reference (`groups` claim contains object IDs; overage behavior):
+    https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference
+- Configure group claims for applications by using Microsoft Entra ID (ObjectId default, claim-format options, app-role recommendation):
+    https://learn.microsoft.com/en-us/entra/identity/hybrid/connect/how-to-connect-fed-group-claims
+- Configure and manage optional claims in ID tokens, access tokens, and SAML tokens (default group object IDs, `cloud_displayname`, `ApplicationGroup` limitation):
+    https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims
 - App roles vs groups:
     https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps#app-roles-vs-groups
 

@@ -423,6 +423,7 @@ Example read pattern:
 
 Practical implication:
 - Keep migration guidance about extension attribute naming for data storage and Graph operations.
+- For apps using authorization code flow, user flows can include selected custom user attributes directly in the ID token.
 - Also document that token claim names can be normalized to business-friendly names (for example `tier`) by extension logic.
 - If a token claim is sourced from an extension attribute, explicitly document the mapping rule in the implementation notes.
 - Custom extension attributes are not received in the Azure Function payload; developers must query Microsoft Graph APIs to retrieve them.
@@ -432,6 +433,8 @@ References:
     https://learn.microsoft.com/en-us/entra/external-id/customers/concept-user-attributes
 - Define custom attributes:
     https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-define-custom-attributes
+- Add custom user attributes to the ID token:
+    https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-add-attributes-to-token
 - Add custom data to resources using extensions:
     https://learn.microsoft.com/en-us/graph/extensibility-overview
 - Microsoft Graph - Get a user (directory extensions returned with `$select`):

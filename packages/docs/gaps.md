@@ -72,9 +72,8 @@ POC baseline in this repo:
 ### Reference discipline for Microsoft product assertions
 
 Validation result:
-- A recurring weakness in the draft is not only technical ambiguity, but unsupported product assertions.
+- A recurring weakness in the draft is unsupported product assertions.
 - When the article states how Microsoft Entra External ID or Microsoft identity platform behaves, readers should be able to trace that statement to a current official Microsoft Learn page.
-- This is especially important in migration guidance, where readers need to separate product-guaranteed behavior from POC-specific observations.
 
 Writer guidance:
 - Add at least one Microsoft Learn citation whenever the article asserts Microsoft behavior, limits, or implementation guidance.
@@ -82,22 +81,9 @@ Writer guidance:
 - If no official Learn page directly supports the statement, soften the wording and label it as a POC observation or implementation note rather than as a universal product fact.
 - For comparative statements involving Cognito and Entra, cite both Microsoft Learn and the corresponding AWS documentation when possible.
 
-High-priority places where citations should be explicit:
-- service limits or quotas
-- token claim semantics and validation rules
-- groups overage behavior and Graph fallback
-- app roles versus groups guidance
-- custom authentication extension trigger support and timeout-sensitive behavior
-- social identity provider configuration steps
-- custom attributes, extension properties, and Graph read/write patterns
-- token lifetime and session management guidance
-
 Concrete example: groups overage section
 - The draft currently makes several strong statements about Entra group overage behavior with no adjacent supporting citation.
-- Add Microsoft Learn references that support both the overage mechanics and the recommendation to prefer app roles when appropriate.
-
-Suggested editorial note for the writer:
-"Throughout the article, when we assert Microsoft product behavior or limits, add a current Microsoft Learn citation at the point of use. For example, the groups-overage section should cite the access-token claims reference for overage indicator behavior and the group-claims guidance for token limits and app-role recommendations."
+- Add Microsoft Learn references that support both the overage mechanics.
 
 Recommended references for the groups-overage section:
 - Access token claims reference (groups overage indicator, `groups`, `hasgroups`, `_claim_names`, `_claim_sources`):

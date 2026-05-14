@@ -1,6 +1,6 @@
 # Gaps and Technical Validation Log
 
-Last modified: 2026-05-13
+Last modified: 2026-05-14
 
 ## Purpose
 This is the working document for validating the migration draft against the POC implemented in this repository.
@@ -27,6 +27,7 @@ POC baseline in this repo:
 - Keep anchor IDs stable; if a section title changes, keep the same anchor ID and update the Anchor Index if needed.
 - Update Last modified date each time this file changes.
 - Keep statements evidence-based, implementation-focused, and reference-backed when possible.
+- When the draft asserts Microsoft product behavior, limits, token semantics, or implementation guidance, prefer a current Microsoft Learn citation that directly supports that exact statement.
 
 ## Gap Register
 
@@ -42,6 +43,7 @@ POC baseline in this repo:
 | G-008 | MFA coverage scope | Migration draft includes MFA migration guidance, but MFA was not exercised in this POC. This area cannot be validated from current implementation evidence. | POC scope notes in packages/docs/engineering-tasks-happy-path 1.md, current test evidence | Mark MFA section as "not validated in this POC" and add separate validation plan for TOTP/SMS scenarios. | [SEC-MFA-SCOPE](#SEC-MFA-SCOPE) |
 | G-009 | Access-token authorization mismatch | POC API enforces `roles` from access token. One test window showed access token with `scp` only (no `roles`) and 403; later tokens include `roles` and endpoint works. The roles need to be added in the app api app registration to be included on access token. | packages/backend/src/auth/viewer-group.guard.ts, packages/backend/src/app.controller.ts, observed token samples (May 2026) |  | [SEC-ACCESS-TOKEN-ROLES](#SEC-ACCESS-TOKEN-ROLES) |
 | G-010 | Access token audience claim semantics | Draft audience mapping is too absolute. Entra v2 access-token `aud` is API client ID (GUID), while Cognito access tokens always include `client_id` and include `aud` only when resource binding is requested. | Observed token sample (May 2026), packages/backend/src/auth/cognito-token-verifier.service.ts, Microsoft Learn claims docs, AWS Cognito token docs | Update claims mapping text to reflect token-version/provider nuance: Entra v2 `aud` = API client ID GUID; Cognito access token uses `client_id` and optional `aud` (resource binding). | [SEC-AUD-V2-CLAIM](#SEC-AUD-V2-CLAIM) |
+| G-011 | Documentation evidence / citations | The draft frequently states Microsoft product behavior, limits, or implementation guidance without attaching a supporting official Microsoft Learn reference. This weakens technical confidence and makes future review harder. | Repeated pattern across draft sections: groups overage, claim mapping, trigger equivalence, social provider setup, token lifetime/session behavior | Add explicit source discipline: whenever the article asserts how Entra External ID or Microsoft identity platform behaves, attach the most specific current Microsoft Learn link that supports the statement. If the statement is based only on POC observation, label it as implementation observation rather than product fact. | [SEC-REFERENCE-DISCIPLINE](#SEC-REFERENCE-DISCIPLINE) |
 
 ## Confirmed Alignments (POC vs draft)
 
@@ -53,6 +55,7 @@ POC baseline in this repo:
 | A-004 | User migration groundwork | Cognito export and user migration runbook exists with social identity handling examples. | packages/docs/plan-migration.md, cognito-users-export.json, cognito-users-enriched.json |
 
 ## Anchor Index
+- SEC-REFERENCE-DISCIPLINE -> Cross-cutting writer guidance for reference-backed Microsoft product assertions
 - SEC-MFA-SCOPE -> MFA statement for writer
 - SEC-ACCESS-TOKEN-ROLES -> Access token missing roles: observed issue and recommendation
 - SEC-AUD-V2-CLAIM -> Access-token audience semantics (Entra v2 and Cognito)
@@ -64,6 +67,43 @@ POC baseline in this repo:
 - SEC-TRIGGER-MAPPING -> Custom authentication extension trigger equivalence (product validation)
 
 ## New Evaluation Notes (May 2026)
+
+<a id="SEC-REFERENCE-DISCIPLINE"></a>
+### Reference discipline for Microsoft product assertions
+
+Validation result:
+- A recurring weakness in the draft is not only technical ambiguity, but unsupported product assertions.
+- When the article states how Microsoft Entra External ID or Microsoft identity platform behaves, readers should be able to trace that statement to a current official Microsoft Learn page.
+- This is especially important in migration guidance, where readers need to separate product-guaranteed behavior from POC-specific observations.
+
+Writer guidance:
+- Add at least one Microsoft Learn citation whenever the article asserts Microsoft behavior, limits, or implementation guidance.
+- Prefer the most specific page that directly supports the sentence, not a broad landing page.
+- If no official Learn page directly supports the statement, soften the wording and label it as a POC observation or implementation note rather than as a universal product fact.
+- For comparative statements involving Cognito and Entra, cite both Microsoft Learn and the corresponding AWS documentation when possible.
+
+High-priority places where citations should be explicit:
+- service limits or quotas
+- token claim semantics and validation rules
+- groups overage behavior and Graph fallback
+- app roles versus groups guidance
+- custom authentication extension trigger support and timeout-sensitive behavior
+- social identity provider configuration steps
+- custom attributes, extension properties, and Graph read/write patterns
+- token lifetime and session management guidance
+
+Concrete example: groups overage section
+- The draft currently makes several strong statements about Entra group overage behavior with no adjacent supporting citation.
+- Add Microsoft Learn references that support both the overage mechanics and the recommendation to prefer app roles when appropriate.
+
+Suggested editorial note for the writer:
+"Throughout the article, when we assert Microsoft product behavior or limits, add a current Microsoft Learn citation at the point of use. For example, the groups-overage section should cite the access-token claims reference for overage indicator behavior and the group-claims guidance for token limits and app-role recommendations."
+
+Recommended references for the groups-overage section:
+- Access token claims reference (groups overage indicator, `groups`, `hasgroups`, `_claim_names`, `_claim_sources`):
+    https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference
+- Configure group claims for applications by using Microsoft Entra ID (200 JWT / 150 SAML limits, groups assigned to application, recommendation to use app roles):
+    https://learn.microsoft.com/en-us/entra/identity/hybrid/connect/how-to-connect-fed-group-claims
 
 <a id="SEC-MFA-SCOPE"></a>
 ### MFA statement

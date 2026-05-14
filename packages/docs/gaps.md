@@ -45,13 +45,15 @@ POC baseline in this repo:
 | G-010 | Access token audience claim semantics | Draft audience mapping is too absolute. Entra v2 access-token `aud` is API client ID (GUID), while Cognito access tokens always include `client_id` and include `aud` only when resource binding is requested. | Observed token sample (May 2026), packages/backend/src/auth/cognito-token-verifier.service.ts, Microsoft Learn claims docs, AWS Cognito token docs | Update claims mapping text to reflect token-version/provider nuance: Entra v2 `aud` = API client ID GUID; Cognito access token uses `client_id` and optional `aud` (resource binding). | [SEC-AUD-V2-CLAIM](#SEC-AUD-V2-CLAIM) |
 | G-011 | Documentation evidence / citations | The draft frequently states Microsoft product behavior, limits, or implementation guidance without attaching a supporting official Microsoft Learn reference. This weakens technical confidence and makes future review harder. | Repeated pattern across draft sections: groups overage, claim mapping, trigger equivalence, social provider setup, token lifetime/session behavior | Add explicit source discipline: whenever the article asserts how Entra External ID or Microsoft identity platform behaves, attach the most specific current Microsoft Learn link that supports the statement. If the statement is based only on POC observation, label it as implementation observation rather than product fact. | [SEC-REFERENCE-DISCIPLINE](#SEC-REFERENCE-DISCIPLINE) |
 | G-012 | Frontend auth migration section quality | The draft frontend SDK mapping table is high-risk and quickly outdated. It can also be implementation-mismatched (this repo migrated from `react-oidc-context`, not Amplify SDK APIs). | `git show main:packages/frontend/src/main.tsx`, `git show main:packages/frontend/src/App.tsx`, packages/frontend/src/main.tsx, packages/frontend/src/App.tsx | Remove the per-method SDK mapping table from the section. Replace with implementation-specific narrative  and add official references to both MSAL APIs and Cognito/OIDC baseline docs. | [SEC-FRONTEND-MAPPING-TABLE](#SEC-FRONTEND-MAPPING-TABLE) |
+| G-013 | Identity Pools replacement wording (OBO token type) | The draft sentence says: "Use the On-Behalf-Of flow to exchange the user's External ID token for a downstream API token." This is ambiguous and can be interpreted as ID token usage. In Microsoft guidance, OBO is an API-to-API delegation pattern that redeems a user access token (not an ID token) at a middle-tier confidential client. | Microsoft Learn OBO flow docs, Microsoft Learn ID token docs, Microsoft Learn SPA token acquisition docs | Rewrite to explicitly state access-token delegation and middle-tier context. If the scenario is direct client-to-resource, recommend acquiring an access token for the target resource directly instead of OBO. | [SEC-OBO-TOKEN-USAGE](#SEC-OBO-TOKEN-USAGE) |
 
 ## Editorial Notes (Non-gap)
 
 | ID | Area | Editorial issue | Suggested rewrite |
 |---|---|---|---|
 | E-001 | Verification section wording | This is not a technical gap; it is an edit-quality issue. The draft says: "API authorization boundaries: A user in the \"viewer\" group can read but not write. A user in \"admin\" can do both. Same test you had for Cognito, re-run against the Entra tokens." However, `viewer` and `admin` are not defined in that section, and application-specific role/group setup details are not described there. | "API authorization boundaries: Re-run the same authorization tests you used with Cognito, now using Entra-issued access tokens. Verify that the read-only test identity is denied write operations, and that the elevated test identity can perform both read and write operations, according to your app's configured roles or groups." |
-| E-002 | Section scope (functional vs non-functional testing) | This is not a technical gap; it is an edit-scope issue. The sentence "Pre-production load test: Drive a realistic sign-in rate through the new tenant. Watch for throttling, custom extension timeouts, and tail latency." is valid guidance, but it does not belong under "Verify authentication flows and API authorization" . It is a performance/resilience test activity. | Remove that sentence from the authentication/authorization verification section" |
+| E-002 | Section scope (functional vs non-functional testing) | This is not a technical gap; it is an edit-scope issue. The sentence "Pre-production load test: Drive a realistic sign-in rate through the new tenant. Watch for throttling, custom extension timeouts, and tail latency." is correct as part of assessment/non-functional validation, but it does not belong under "Verify authentication flows and API authorization". | Keep the sentence, but move it from the authentication/authorization verification section to an assessment section such as "Performance and resilience validation" or "Pre-production non-functional testing." |
+| E-003 | Migration section completeness (Step 3) | This is not a technical gap; it is an editorial completeness issue. The draft mentions downstream dependencies risk (CloudWatch alarms on Cognito events, EventBridge rules triggered by Cognito, third-party webhook analytics, and SNS/SQS notifications tied to the user pool), but this is not explicitly called out in migration section Step 3. | Add a writer-attention note in migration Step 3: "Before decommissioning Cognito, inventory and migrate downstream event consumers (CloudWatch alarms, EventBridge rules, third-party webhooks, SNS/SQS notifications) to equivalent sources in the new identity architecture. Validate they continue to receive expected events to avoid silent breakage." |
 
 ## Confirmed Alignments (POC vs draft)
 
@@ -69,6 +71,7 @@ POC baseline in this repo:
 - SEC-ACCESS-TOKEN-ROLES -> Access token missing roles: observed issue and recommendation
 - SEC-AUD-V2-CLAIM -> Access-token audience semantics (Entra v2 and Cognito)
 - SEC-FRONTEND-MAPPING-TABLE -> Recommendation to remove fragile frontend SDK mapping table and use implementation-specific guidance with references
+- SEC-OBO-TOKEN-USAGE -> OBO means On-Behalf-Of; use access token (not ID token) and middle-tier delegation pattern
 - SEC-PAYLOAD-REALITY -> OnTokenIssuanceStart payload reality (writer note)
 - SEC-AADSTS50146 -> AADSTS50146 outage prevention and rollback
 - SEC-AUTH-MODEL -> Authorization model recommendation (aligned with POC)
@@ -267,6 +270,36 @@ Recommended references:
     https://learn.microsoft.com/en-us/entra/msal/javascript/react/hooks
 - Cognito user pool app integration (OIDC/OAuth baseline concepts):
     https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-app-integration.html
+
+<a id="SEC-OBO-TOKEN-USAGE"></a>
+### OBO token usage and wording correction
+
+Definition:
+- OBO stands for **On-Behalf-Of**.
+
+Validation result:
+- The draft idea is directionally useful, but the current sentence is risky because "External ID token" can be interpreted as an ID token.
+- Official Microsoft guidance for OBO requires a **user access token** as the assertion, sent to a **middle-tier confidential API** that exchanges it for another downstream access token.
+- ID tokens are for authentication context in the client and should not be used to call APIs.
+
+Writer guidance:
+- Replace ambiguous wording with one of the following, depending on architecture:
+  - API-to-API delegation pattern (OBO):
+    "Use the On-Behalf-Of (OBO) flow in a middle-tier confidential API to exchange the user's access token (issued for API A) for an access token to downstream API B."
+  - Direct client-to-resource pattern (no OBO):
+    "For direct client access, acquire an access token for the target resource directly from the client and call the resource without OBO."
+
+Recommended references:
+- OAuth 2.0 OBO flow (assertion is access token, middle-tier pattern):
+    https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow
+- ID tokens (not for API authorization):
+    https://learn.microsoft.com/en-us/entra/identity-platform/id-tokens
+- Access tokens (authorization tokens for APIs):
+    https://learn.microsoft.com/en-us/entra/identity-platform/access-tokens
+- SPA acquire token for API calls:
+    https://learn.microsoft.com/en-us/entra/identity-platform/scenario-spa-acquire-token
+- Web API that calls downstream APIs (OBO scenario overview):
+    https://learn.microsoft.com/en-us/entra/identity-platform/scenario-web-api-call-api-overview
 
 <a id="SEC-PAYLOAD-REALITY"></a>
 ### OnTokenIssuanceStart payload reality

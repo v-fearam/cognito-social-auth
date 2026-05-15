@@ -355,7 +355,7 @@ Related information:
     https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes
 
 Repository evidence and summary:
-- Full incident walkthrough is documented in [packages/docs/tutorial-custom-tier-claim-entra-external-id.md](packages/docs/tutorial-custom-tier-claim-entra-external-id.md).
+- Full incident walkthrough is documented in [packages/docs/tutorial-custom-tier-claim-entra-external-id.md](https://github.com/v-fearam/cognito-social-auth/blob/entra-external-id/packages/docs/tutorial-custom-tier-claim-entra-external-id.md).
 - The tutorial records the end-to-end flow used in this POC: `OnTokenIssuanceStart` extension calling Azure Function to inject `tier` claim.
 - It captures the AADSTS50146 failure condition observed after enabling custom claims provider flow.
 - It records the successful remediation path executed in the POC: configuring an application-specific token signing certificate on the SPA service principal via Microsoft Graph and setting the preferred signing thumbprint.

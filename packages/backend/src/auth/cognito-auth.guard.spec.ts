@@ -1,28 +1,27 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { CognitoAuthGuard } from './cognito-auth.guard';
-import { CognitoTokenVerifierService, CognitoUser } from './cognito-token-verifier.service';
+import { EntraAuthGuard } from './cognito-auth.guard';
+import { EntraTokenVerifierService, EntraUser } from './cognito-token-verifier.service';
 
-describe('CognitoAuthGuard', () => {
-  let guard: CognitoAuthGuard;
-  let tokenVerifier: CognitoTokenVerifierService;
+describe('EntraAuthGuard', () => {
+  let guard: EntraAuthGuard;
+  let tokenVerifier: EntraTokenVerifierService;
 
-  const mockCognitoUser: CognitoUser = {
-    sub: 'user-123',
+  const mockEntraUser: EntraUser = {
+    oid: 'user-123',
     email: 'user@example.com',
-    username: 'testuser',
-    client_id: '2jcjrvftiedm8rtp8ii8pt1heb',
-    token_use: 'access',
-    scope: 'openid email profile',
-    'cognito:groups': ['users'],
+    preferred_username: 'testuser',
+    aud: '6c959c17-63ba-4477-b66e-928d7d9ba937',
+    scp: 'read',
+    roles: ['viewer'],
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        CognitoAuthGuard,
+        EntraAuthGuard,
         {
-          provide: CognitoTokenVerifierService,
+          provide: EntraTokenVerifierService,
           useValue: {
             verifyAccessToken: jest.fn(),
           },
@@ -30,8 +29,8 @@ describe('CognitoAuthGuard', () => {
       ],
     }).compile();
 
-    guard = module.get<CognitoAuthGuard>(CognitoAuthGuard);
-    tokenVerifier = module.get<CognitoTokenVerifierService>(CognitoTokenVerifierService);
+    guard = module.get<EntraAuthGuard>(EntraAuthGuard);
+    tokenVerifier = module.get<EntraTokenVerifierService>(EntraTokenVerifierService);
   });
 
   it('should be defined', () => {
@@ -52,13 +51,13 @@ describe('CognitoAuthGuard', () => {
         }),
       } as unknown as ExecutionContext;
 
-      (tokenVerifier.verifyAccessToken as jest.Mock).mockResolvedValue(mockCognitoUser);
+      (tokenVerifier.verifyAccessToken as jest.Mock).mockResolvedValue(mockEntraUser);
 
       const result = await guard.canActivate(mockContext);
 
       expect(result).toBe(true);
       expect(tokenVerifier.verifyAccessToken).toHaveBeenCalledWith('valid-token');
-      expect(mockRequest.user).toEqual(mockCognitoUser);
+      expect(mockRequest.user).toEqual(mockEntraUser);
     });
 
     it('should throw UnauthorizedException if Authorization header is missing', async () => {
@@ -108,7 +107,7 @@ describe('CognitoAuthGuard', () => {
         }),
       } as unknown as ExecutionContext;
 
-      (tokenVerifier.verifyAccessToken as jest.Mock).mockResolvedValue(mockCognitoUser);
+      (tokenVerifier.verifyAccessToken as jest.Mock).mockResolvedValue(mockEntraUser);
 
       await guard.canActivate(mockContext);
 
@@ -148,12 +147,12 @@ describe('CognitoAuthGuard', () => {
         }),
       } as unknown as ExecutionContext;
 
-      (tokenVerifier.verifyAccessToken as jest.Mock).mockResolvedValue(mockCognitoUser);
+      (tokenVerifier.verifyAccessToken as jest.Mock).mockResolvedValue(mockEntraUser);
 
       await guard.canActivate(mockContext);
 
       expect(mockRequest.user).toBeDefined();
-      expect(mockRequest.user.sub).toBe('user-123');
+      expect(mockRequest.user.oid).toBe('user-123');
       expect(mockRequest.user.email).toBe('user@example.com');
     });
   });

@@ -7,8 +7,8 @@ describe('ViewerGroupGuard', () => {
   let guard: ViewerGroupGuard;
 
   beforeEach(async () => {
-    process.env.COGNITO_ADMIN_GROUP = 'admin';
-    process.env.COGNITO_VIEWER_GROUP = 'viewer';
+    process.env.ENTRA_ADMIN_ROLE = 'admin';
+    process.env.ENTRA_VIEWER_ROLE = 'viewer';
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [ViewerGroupGuard],
@@ -25,8 +25,8 @@ describe('ViewerGroupGuard', () => {
     it('should allow request if user is in viewer group', () => {
       const mockRequest = {
         user: {
-          sub: 'viewer-123',
-          'cognito:groups': ['viewer'],
+          oid: 'viewer-123',
+          roles: ['viewer'],
         },
       } as unknown as AuthenticatedRequest;
 
@@ -42,8 +42,8 @@ describe('ViewerGroupGuard', () => {
     it('should allow request if user is in admin group', () => {
       const mockRequest = {
         user: {
-          sub: 'admin-123',
-          'cognito:groups': ['admin'],
+          oid: 'admin-123',
+          roles: ['admin'],
         },
       } as unknown as AuthenticatedRequest;
 
@@ -59,8 +59,8 @@ describe('ViewerGroupGuard', () => {
     it('should throw if user has neither viewer nor admin group', () => {
       const mockRequest = {
         user: {
-          sub: 'user-123',
-          'cognito:groups': ['users'],
+          oid: 'user-123',
+          roles: ['reader'],
         },
       } as unknown as AuthenticatedRequest;
 
@@ -71,18 +71,18 @@ describe('ViewerGroupGuard', () => {
       } as unknown as ExecutionContext;
 
       expect(() => guard.canActivate(mockContext)).toThrow(
-        'Viewer or admin group is required',
+        'Viewer or admin role is required',
       );
     });
 
     it('should respect custom viewer group environment variable', () => {
-      process.env.COGNITO_VIEWER_GROUP = 'readers';
+      process.env.ENTRA_VIEWER_ROLE = 'readers';
       const customGuard = new ViewerGroupGuard();
 
       const mockRequest = {
         user: {
-          sub: 'reader-123',
-          'cognito:groups': ['readers'],
+          oid: 'reader-123',
+          roles: ['readers'],
         },
       } as unknown as AuthenticatedRequest;
 
@@ -93,7 +93,7 @@ describe('ViewerGroupGuard', () => {
       } as unknown as ExecutionContext;
 
       expect(customGuard.canActivate(mockContext)).toBe(true);
-      process.env.COGNITO_VIEWER_GROUP = 'viewer';
+      process.env.ENTRA_VIEWER_ROLE = 'viewer';
     });
   });
 });

@@ -91,14 +91,36 @@ Set up a Cognito User Pool that matches the article's example scenario: a consum
 
 ## Target environment (Azure)
 
-**Status: ⏭️ NOT STARTED (Phase 3 - Future)**
+### Task 7: Create External ID tenant ✅ COMPLETE
 
-### Task 7: Create External ID tenant ⏭️
+**Progress snapshot (2026-05-06):**
 
-- Create a Microsoft Entra External ID tenant in the Entra admin center
-- Note the tenant name, tenant ID, and domain
+- ✅ External ID tenant created: **Cognito Migration**
+- ✅ Tenant ID: `0a3af0e3-416b-4a6b-97e9-cb3a9a094449`
+- ✅ Subdomain: `cognitomigration`
+- ✅ Primary domain: `cognitomigration.onmicrosoft.com`
+- ✅ CIAM authority: `https://cognitomigration.ciamlogin.com/cognitomigration.onmicrosoft.com`
 
-### Task 8: Register applications and expose API ⏭️
+### Task 8: Register applications and expose API ✅ COMPLETE
+
+**Progress snapshot (2026-05-06):**
+
+- ✅ Client app registration created in External ID tenant
+- ✅ App name: `cognito-migration-spa`
+- ✅ Supported account type: Single tenant only - Cognito Migration
+- ✅ SPA redirect URI configured: `http://localhost:5173/`
+- ✅ Application (client) ID captured: `6d28eafe-06fd-46d7-b04a-3403048bfd1c`
+- ✅ Directory (tenant) ID confirmed: `0a3af0e3-416b-4a6b-97e9-cb3a9a094449`
+- ✅ Admin consent granted for current default permission (`Microsoft Graph > User.Read`)
+- ✅ Authentication settings verified for SPA: implicit/hybrid token toggles OFF
+- ℹ️ Optional compatibility: add redirect URI `http://localhost:5173` if callback matching requires non-trailing-slash variant
+- ✅ Backend API app registration created: `cognito-migration-api`
+- ✅ Backend API Application (client) ID captured: `6c959c17-63ba-4477-b66e-928d7d9ba937`
+- ✅ Backend API Object ID captured: `a6f13eaa-3ddb-42e1-bf1e-706b1fa0fb31`
+- ✅ Application ID URI set in Expose an API: `api://6c959c17-63ba-4477-b66e-928d7d9ba937`
+- ✅ API scopes created: `read`, `write` (Admins only)
+- ✅ SPA delegated API permissions added: `read`, `write`
+- ✅ Admin consent granted for new API scopes (`Read API data`, `Write API data`)
 
 - Register the client app (web app) with redirect URI matching the sample app
 - Enable authorization code flow with PKCE
@@ -107,7 +129,24 @@ Set up a Cognito User Pool that matches the article's example scenario: a consum
 - In the client app, add the API scopes under "API permissions"
 - Grant admin consent
 
-### Task 9: Configure social identity providers in External ID ⏭️
+### Task 9: Configure social identity providers in External ID ✅ COMPLETE
+
+**Progress snapshot (2026-05-06):**
+
+- ✅ Google OAuth client updated with required Entra External ID redirect URIs
+- ✅ Google OAuth authorized domains verified: `microsoftonline.com`, `ciamlogin.com`
+- ✅ Existing Cognito Google configuration preserved during migration
+- ✅ Google identity provider configured in Entra External ID
+- ✅ Facebook identity provider configured in Entra External ID
+- ✅ Facebook redirect URI updated in Meta with Entra URI (Cognito URI preserved)
+- ✅ User flow created: `SignUpSignIn`
+- ✅ User flow applications includes: `cognito-migration-spa`
+- ✅ User flow identity providers selected: Email with password, Google, Facebook
+- ✅ User attributes verified: Email Address + Display Name
+- ✅ User flow run executed; Google/Facebook options displayed and launched
+- ℹ️ Facebook social sign-up with enterprise-domain account returns expected policy block: `Invalid consumer domain for social signup`
+
+**Next active task:** Task 10 (app roles `admin` and `viewer`).
 
 - Add Google as a social identity provider using the same OAuth client from Task 1 (add the External ID redirect URI in Google Cloud Console)
 - Add Facebook using the same app from Task 1 (add the External ID redirect URI in Meta for Developers)
@@ -116,78 +155,133 @@ Set up a Cognito User Pool that matches the article's example scenario: a consum
 - Associate the client app with the user flow
 - Test: sign in with Google/Facebook through the External ID user flow, confirm a user is created
 
-### Task 10: Set up groups or app roles ⏭️
+### Task 10: Set up groups or app roles ✅ COMPLETE
 
-- Create app roles on the client app registration: `admin` and `viewer`
-- Or: create Entra groups matching the Cognito groups
-- Document which approach was chosen and why (article recommends app roles for this scenario)
+**Progress snapshot (2026-05-07):**
 
-### Task 11: Create custom authentication extension ⏭️
+- ✅ Security groups created in Entra: `admin`, `viewer`
+- ✅ App roles (`admin`, `viewer`) created on **both** app registrations:
+  - `cognito-migration-spa` → roles emitted in the **ID token** (audience = SPA)
+  - `cognito-migration-api` → roles emitted in the **access token** (audience = API)
+- ✅ Enterprise app role-to-group mapping configured:
+  - Enterprise app `cognito-migration-spa`: group `admin` → role `admin`, group `viewer` → role `viewer`
+  - Enterprise app `cognito-migration-api`: group `admin` → role `admin`, group `viewer` → role `viewer`
+- ✅ Test user "Fred" assigned to `viewer` group and verified in both tokens
+- ✅ `/api/viewer` returns 200 with viewer role ✅
+- ✅ `/api/admin` returns 200 with admin role ✅ (tested with admin-assigned user)
+- ✅ Social login (Google/Facebook) tested with new user sign-up
 
-- Create an Azure Function that mimics the Cognito Pre Token Generation Lambda:
-  - On the `OnTokenIssuanceStart` event, return the `custom:tier` value as an extra claim
-- Register the Azure Function as a custom authentication extension in External ID
-- Add the extension to the user flow
-- Test: sign in and verify the custom claim appears in the token
+**Approach chosen: App roles + Security groups (combined)**
 
-### Task 12: Deploy sample web app with MSAL ⏭️
+Per [Microsoft Learn - App roles vs. groups](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps#app-roles-vs-groups) and [Usage scenario](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps#usage-scenario-of-app-roles):
 
-- Update the sample web app from Task 4 (or build a new one) to use MSAL instead of Amplify Auth
-- Configure: client ID, authority (External ID tenant), redirect URI, API scopes
-- The app should: sign in via MSAL, display ID token claims, call the backend API with the Entra access token
-- Verify the MSAL call translations from the article work:
-  - `loginRedirect` replaces `Auth.federatedSignIn`
-  - `acquireTokenSilent` replaces `Auth.currentSession`
-  - `logoutRedirect` replaces `Auth.signOut`
+- In an app-calling-API scenario with two app registrations, roles must be defined on **each** app registration to appear in the corresponding token (ID token for SPA, access token for API)
+- Security groups provide centralized user management: add/remove a user from a group once, and they receive the correct roles in both tokens
+- Each app registration has its own Enterprise App where groups are mapped to roles
 
-### Task 13: Update backend API to validate Entra tokens ⏭️
+### Task 11: Create custom authentication extension ✅ COMPLETE
 
-- Update (or create a parallel version of) the backend API to:
-  - Validate tokens against the Entra JWKS endpoint
-  - Read `roles` (or `groups`) instead of `cognito:groups`
-  - Read `oid` instead of `sub` as the user identifier
-  - Read `scp` instead of `scope`
-  - Handle the groups overage scenario (if using groups instead of app roles)
-- Test: call the API with an Entra access token, confirm authorization works
+**Progress snapshot (2026-05-08):**
 
-## Migration (the actual test) - to be done after green light and to follow the instruction from article ⏭️
+- ✅ Custom authentication extension created using `OnTokenIssuanceStart` event
+- ✅ Extension mimics Cognito Pre Token Generation Lambda: returns `custom:tier` as an extra claim
+- ✅ Extension registered in **Enterprise applications → Custom authentication extensions**
+- ✅ Azure Function deployed and validated with live HTTP response
+- ✅ App-specific signing key configured on `cognito-migration-spa` service principal
+- ✅ App-specific signing key configured on `cognito-migration-api` service principal for enriched access tokens
+- ✅ Custom claims provider assigned and mapped in **Single sign-on → Attributes & Claims**
+- ✅ `tier` claim confirmed injected in token flow
+- ✅ Demo path validated without Step 5 function protection
 
-**Status: NOT STARTED (Phase 3)** ⏭️
+**Latest validation update (2026-05-08):**
 
-### Task 14: Export users from Cognito
+- ✅ Added structured diagnostics in function logs (payload summary + user context)
+- ✅ Confirmed with live logs that `TokenIssuanceStart` payload currently contains only minimal user fields (`id`, `userPrincipalName`, etc.) and does not include role/group claims
+- ✅ Confirmed dynamic role-based tier resolution is not reliable in current External ID callout payload
+- ✅ Temporary operating decision: simplify function and hardcode `tier = "premium"` while keeping diagnostics enabled
+- ⏭️ Deferred decision: long-term tier source (Graph lookup of custom attribute/app role vs. env mapping)
 
-- Use AWS CLI (`list-users`, `admin-get-user`) to export all test users
-- Capture: email, federated identity links (provider + external subject ID), custom attributes, group memberships
-- Save as JSON for the import step ⏭️
+**External ID custom attribute note (2026-05-08):**
 
-### Task 15: Import users to External ID via Microsoft Graph
+- ✅ Custom attribute `tier` created in **External Identities → Custom user attributes**
+- ✅ Microsoft Learn guidance reviewed
+- ⚠️ Standard per-user portal properties page does not expose these extension values for manual editing in this flow
+- ✅ Supported paths: collect via user flow during sign-up or set programmatically via Microsoft Graph extension property naming convention
 
-- For each user, create a user object via Graph API `/users`
-- For social-linked users, add federated identities so External ID links them to the same Google/Facebook subject
-- Set the `custom:tier` extension attribute on each user
-- Assign app roles (or group memberships) matching the Cognito groups
-- Use Graph batching to simulate a realistic migration flow
-- Document: which Graph API calls were us ⏭️ed, any throttling encountered, how long it took
+**Reproducible runbook:** See [tutorial-custom-tier-claim-entra-external-id.md](./tutorial-custom-tier-claim-entra-external-id.md) for the validated end-to-end procedure, including:
+1. The Azure Function code for the `tier` claim
+2. How to configure signing keys on both SPA and API service principals when needed
+3. How to assign the custom claims provider and map the claim
+4. The current portal behavior for `TokenIssuanceStart`
+5. Demo vs production guidance for Azure Function protection
 
-### Task 16: Test the migrated happy path
+### Task 12: Deploy sample web app with MSAL ✅ COMPLETE
 
-Run through each scenario and record pass/fail:
+**Progress snapshot (2026-05-07):**
 
-1. **Social sign-in (Google) with migrated user.** User signs in with Google. External ID finds the existing user (not a new registration). Token is issued with correct claims.
-2. **Social sign-in (Facebook) with migrated user.** Same as above for Facebook.
-3. **New user sign-up.** A brand-new Google user signs up. External ID creates a user with expected attributes.
-4. **API call with Entra token.** Web app calls the API with the Entra access token. API authorizes based on roles/groups. Admin can write, viewer can only read.
-5. **Custom claim in token.** The `custom:tier` claim appears in the token via the custom authentication extension.
-6. **Token refresh.** Let the access token expire. MSAL uses the refresh token silently. App continues working.
-7. **Local account password reset (if applicable).** Migrated local user is prompted to reset password on first sign-in. After reset, sign-in works.
-8. **Account linking.** A migrated user ⏭️ signs in with the same Google account. They are matched to the existing user, not duplicated.
+- ✅ Frontend migrated from `react-oidc-context` (Cognito) to `@azure/msal-react` (Entra)
+- ✅ MSAL configuration: client ID, CIAM authority, redirect URI, API scopes
+- ✅ `loginRedirect` replaces `Auth.federatedSignIn`
+- ✅ `acquireTokenSilent` replaces `Auth.currentSession` (used for API calls with access token)
+- ✅ `logoutRedirect` replaces `Auth.signOut`
+- ✅ User "Fred" signs in successfully; profile, groups, tier, and session cards display correctly
+- ✅ Social login (Google/Facebook) tested with new user sign-up
+- ✅ Running on `localhost:5173`
 
-### Task 17: Document findings and gaps
+### Task 13: Update backend API to validate Entra tokens ✅ COMPLETE
 
-- Record any steps from the article that were unclear, incorrect, or missing
-- Note any AWS or Azure behavior that differed from what the article describes
-- Flag any permissions, configurations, or prerequisites the article should mention but doesn't
-- Capture screenshots of key configuration screens for the article's media folder
+**Progress snapshot (2026-05-07):**
+
+- ✅ Backend migrated from Cognito JWKS validation to Entra JWKS validation (using `jose` library)
+- ✅ Token issuer validation supports CIAM issuer variants (`tenantId.ciamlogin.com` and `subdomain.ciamlogin.com`)
+- ✅ JWKS URI derived dynamically from token issuer for consistency
+- ✅ Audience validated against API client ID (`6c959c17-63ba-4477-b66e-928d7d9ba937`)
+- ✅ Reads `roles` instead of `cognito:groups` for authorization
+- ✅ Reads `oid` instead of `sub` as user identifier
+- ✅ Reads `scp` instead of `scope`
+- ✅ `AdminGroupGuard` and `ViewerGroupGuard` check `roles` claim from access token
+- ✅ `/api/profile` returns 200 with decoded Entra claims
+- ✅ `/api/viewer` returns 200 for users with `viewer` role
+- ✅ `/api/admin` returns 200 for users with `admin` role
+- ✅ Running on `localhost:3000`
+
+## Migration (the actual test) ✅ COMPLETE
+
+**Status: COMPLETE (Phase 3 validated on 2026-05-12)**
+
+### Task 14: Export users from Cognito ✅ COMPLETE
+
+- ✅ Exported users from Cognito user pool using AWS CLI
+- ✅ Captured email, federated identity links, custom attributes, and group memberships
+- ✅ Saved enriched export JSON for import step (`cognito-users-enriched.json`)
+
+### Task 15: Import users to External ID via Microsoft Graph ✅ COMPLETE
+
+- ✅ Imported eligible users to External ID via Graph API `/users`
+- ✅ Created federated identities for social-linked users (Google mapping validated)
+- ✅ Set the custom tier extension attribute using `extension_{appId}_tier` naming
+- ✅ Assigned Entra groups/roles according to migration mapping (`admin` / `viewer`)
+- ✅ Documented working import and validation scripts in [packages/docs/plan-migration.md](../../packages/docs/plan-migration.md)
+
+### Task 16: Test the migrated happy path ✅ COMPLETE
+
+All planned happy-path tests were executed with the following results:
+
+1. ✅ Social sign-in (Google) with migrated user: existing user matched, no duplicate
+2. ⏭️ Social sign-in (Facebook) with migrated user: **NOT TESTED** — Cognito Facebook user (`far@clariusconsulting.net`) has an enterprise domain email; Entra External ID blocks social sign-up for enterprise domains by policy (see [plan-migration.md](../../packages/docs/plan-migration.md) Task 14 observations). Test would require a non-enterprise domain email.
+3. ✅ New user sign-up: successful with expected profile behavior
+4. ✅ API call with Entra token: authorization behavior validated for admin/viewer paths
+5. ✅ Custom claim in token: `tier` claim present according to configured extension flow
+6. ✅ Token refresh: silent refresh behavior validated
+7. ✅ Local account password reset (if applicable): not required for this migration subset
+8. ✅ Account linking: repeated social sign-in reuses existing user record
+
+### Task 17: Document findings and gaps 🟡 IN PROGRESS
+
+- ✅ Recorded migration execution details and verification workflow in [packages/docs/plan-migration.md](../../packages/docs/plan-migration.md)
+- ✅ Captured key platform findings (External ID portal visibility limits for extension properties, Graph verification approach)
+- ⏭️ Capture/organize final screenshots for article media folder
+- ⏭️ Final editorial pass for article gap notes
 
 ## Cleanup ⏭️
 

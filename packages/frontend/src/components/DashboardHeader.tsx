@@ -9,7 +9,7 @@ export function DashboardHeader({ isAuthenticated, userName, onSignOut }: Dashbo
     <header className="topbar">
       <div>
         <p className="eyebrow">Secure Authentication</p>
-        <h2 className="title">Cognito Social Auth Dashboard</h2>
+        <h2 className="title">Entra External ID Dashboard</h2>
       </div>
 
       {isAuthenticated ? (

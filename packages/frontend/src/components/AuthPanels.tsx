@@ -19,11 +19,10 @@ export function SignInPanel({ onSignIn }: SignInPanelProps) {
     <section className="panel auth-panel">
       <h3 className="panel-title">Sign in to continue</h3>
       <p className="panel-copy">
-        Authenticate with Cognito managed login, then test protected API routes using your access
-        token.
+        Authenticate with Entra External ID, then test protected API routes using your access token.
       </p>
       <button className="action-btn action-btn-primary" onClick={onSignIn}>
-        Sign in with Cognito
+        Sign in with Entra External ID
       </button>
     </section>
   );

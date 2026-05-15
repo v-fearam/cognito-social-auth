@@ -1,9 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { CognitoTokenVerifierService } from './auth/cognito-token-verifier.service';
-import { CognitoAuthGuard } from './auth/cognito-auth.guard';
-import { AdminGroupGuard } from './auth/admin-group.guard';
+import { EntraTokenVerifierService } from './auth/cognito-token-verifier.service';
 
 describe('AppController', () => {
   let appController: AppController;
@@ -14,7 +12,7 @@ describe('AppController', () => {
       providers: [
         AppService,
         {
-          provide: CognitoTokenVerifierService,
+          provide: EntraTokenVerifierService,
           useValue: {
             verifyAccessToken: jest.fn(),
           },
@@ -47,66 +45,66 @@ describe('AppController', () => {
     });
   });
 
-  describe('GET /profile (with CognitoAuthGuard)', () => {
+  describe('GET /profile (with EntraAuthGuard)', () => {
     it('should return profile with user claims', () => {
       const mockRequest = {
         user: {
-          sub: 'user-123',
+          oid: 'user-123',
           email: 'user@example.com',
-          username: 'testuser',
-          client_id: '2jcjrvftiedm8rtp8ii8pt1heb',
-          scope: 'openid email profile',
-          'custom:tier': 'pro',
-          'cognito:groups': ['users'],
+          preferred_username: 'testuser',
+          azp: '6d28eafe-06fd-46d7-b04a-3403048bfd1c',
+          scp: 'read',
+          tier: 'pro',
+          roles: ['viewer'],
         },
       };
 
       const result = appController.profile(mockRequest as any);
 
-      expect(result.sub).toBe('user-123');
+      expect(result.oid).toBe('user-123');
       expect(result.email).toBe('user@example.com');
       expect(result.username).toBe('testuser');
       expect(result.tier).toBe('pro');
-      expect(result.message).toBe('Valid Cognito access token');
+      expect(result.message).toBe('Valid Entra access token');
     });
 
-    it('should include groups from cognito:groups claim', () => {
+    it('should include roles from roles claim', () => {
       const mockRequest = {
         user: {
-          sub: 'user-123',
+          oid: 'user-123',
           email: 'admin@example.com',
-          username: 'adminuser',
-          client_id: '2jcjrvftiedm8rtp8ii8pt1heb',
-          scope: 'openid email profile',
-          'cognito:groups': ['admin', 'users'],
+          preferred_username: 'adminuser',
+          azp: '6d28eafe-06fd-46d7-b04a-3403048bfd1c',
+          scp: 'read write',
+          roles: ['admin', 'viewer'],
         },
       };
 
       const result = appController.profile(mockRequest as any);
 
-      expect(result.groups).toEqual(['admin', 'users']);
+      expect(result.roles).toEqual(['admin', 'viewer']);
     });
 
-    it('should handle missing groups gracefully', () => {
+    it('should handle missing roles gracefully', () => {
       const mockRequest = {
         user: {
-          sub: 'user-123',
+          oid: 'user-123',
           email: 'user@example.com',
-          username: 'testuser',
-          client_id: '2jcjrvftiedm8rtp8ii8pt1heb',
-          scope: 'openid email profile',
+          preferred_username: 'testuser',
+          azp: '6d28eafe-06fd-46d7-b04a-3403048bfd1c',
+          scp: 'read',
         },
       };
 
       const result = appController.profile(mockRequest as any);
 
-      expect(result.groups).toEqual([]);
+      expect(result.roles).toEqual([]);
     });
 
     it('should include business logic simulation message', () => {
       const mockRequest = {
         user: {
-          sub: 'user-123',
+          oid: 'user-123',
           email: 'user@example.com',
         },
       };
@@ -118,28 +116,28 @@ describe('AppController', () => {
       );
     });
 
-    it('should include client_id and scope from token', () => {
+    it('should include azp and scope from token', () => {
       const mockRequest = {
         user: {
-          sub: 'user-123',
+          oid: 'user-123',
           email: 'user@example.com',
-          client_id: '2jcjrvftiedm8rtp8ii8pt1heb',
-          scope: 'openid email',
+          azp: '6d28eafe-06fd-46d7-b04a-3403048bfd1c',
+          scp: 'read',
         },
       };
 
       const result = appController.profile(mockRequest as any);
 
-      expect(result.client_id).toBe('2jcjrvftiedm8rtp8ii8pt1heb');
-      expect(result.scope).toBe('openid email');
+      expect(result.azp).toBe('6d28eafe-06fd-46d7-b04a-3403048bfd1c');
+      expect(result.scope).toBe('read');
     });
 
-    it('should include custom tier when present', () => {
+    it('should include tier when present', () => {
       const mockRequest = {
         user: {
-          sub: 'user-123',
+          oid: 'user-123',
           email: 'user@example.com',
-          'custom:tier': 'enterprise',
+          tier: 'enterprise',
         },
       };
 
@@ -149,13 +147,13 @@ describe('AppController', () => {
     });
   });
 
-  describe('GET /viewer (with CognitoAuthGuard + ViewerGroupGuard)', () => {
+  describe('GET /viewer (with EntraAuthGuard + ViewerGroupGuard)', () => {
     it('should return viewer response', () => {
       const mockRequest = {
         user: {
-          sub: 'viewer-user-123',
-          'custom:tier': 'free',
-          'cognito:groups': ['viewer'],
+          oid: 'viewer-user-123',
+          tier: 'free',
+          roles: ['viewer'],
         },
       };
 
@@ -172,7 +170,7 @@ describe('AppController', () => {
     it('should expose the custom tier in viewer response', () => {
       const mockRequest = {
         user: {
-          'custom:tier': 'pro',
+          tier: 'pro',
         },
       };
 
@@ -182,12 +180,12 @@ describe('AppController', () => {
     });
   });
 
-  describe('GET /admin (with CognitoAuthGuard + AdminGroupGuard)', () => {
+  describe('GET /admin (with EntraAuthGuard + AdminGroupGuard)', () => {
     it('should return admin response', () => {
       const mockRequest = {
         user: {
-          sub: 'admin-user-123',
-          'cognito:groups': ['admin'],
+          oid: 'admin-user-123',
+          roles: ['admin'],
         },
       };
 
@@ -225,11 +223,11 @@ describe('AppController', () => {
       expect(appController.health()).toBeDefined();
     });
 
-    it('profile endpoint should require CognitoAuthGuard', () => {
+    it('profile endpoint should require EntraAuthGuard', () => {
       // This test validates the guard is applied (actual enforcement happens at NestJS level)
       const mockRequest = {
         user: {
-          sub: 'user-123',
+          oid: 'user-123',
           email: 'user@example.com',
         },
       };
@@ -237,7 +235,7 @@ describe('AppController', () => {
       expect(appController.profile(mockRequest as any)).toBeDefined();
     });
 
-    it('admin endpoint should require both CognitoAuthGuard and AdminGroupGuard', () => {
+    it('admin endpoint should require both EntraAuthGuard and AdminGroupGuard', () => {
       // This test validates the guards are applied (actual enforcement happens at NestJS level)
       expect(appController.admin()).toBeDefined();
     });
@@ -247,7 +245,7 @@ describe('AppController', () => {
     it('all protected endpoints should include message field', () => {
       const mockRequest = {
         user: {
-          sub: 'user-123',
+          oid: 'user-123',
           email: 'user@example.com',
         },
       };

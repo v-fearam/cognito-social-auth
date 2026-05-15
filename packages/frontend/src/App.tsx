@@ -1,6 +1,7 @@
 import './App.css';
 import { useCallback, useMemo, useState } from 'react';
-import { useAuth } from 'react-oidc-context';
+import { useIsAuthenticated, useMsal } from '@azure/msal-react';
+import { loginRequest } from './authConfig';
 import { ApiActionsPanel } from './components/ApiActionsPanel';
 import { ApiResultsPanel } from './components/ApiResultsPanel';
 import { DashboardHeader } from './components/DashboardHeader';
@@ -8,9 +9,6 @@ import { ErrorPanel, LoadingPanel, SignInPanel } from './components/AuthPanels';
 import { SummaryCards } from './components/SummaryCards';
 
 const BACKEND_API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-const COGNITO_HOSTED_UI_BASE_URL = import.meta.env.VITE_COGNITO_DOMAIN as string;
-const COGNITO_APP_CLIENT_ID = import.meta.env.VITE_COGNITO_APP_CLIENT_ID as string;
-const COGNITO_POST_LOGOUT_REDIRECT_URI = import.meta.env.VITE_COGNITO_SIGNOUT_URI as string;
 
 type ProtectedApiPath = '/api/profile' | '/api/viewer' | '/api/admin';
 type ApiResultViewModel = {
@@ -25,60 +23,79 @@ type ApiResponsePayload = {
 };
 
 function App() {
-  const authContext = useAuth();
+  const { instance, accounts, inProgress } = useMsal();
+  const account = accounts[0];
+  const idTokenClaims = (account?.idTokenClaims ?? {}) as Record<string, unknown>;
   const [profileResponse, setProfileResponse] = useState<ApiResultViewModel | null>(null);
   const [viewerResponse, setViewerResponse] = useState<ApiResultViewModel | null>(null);
   const [adminResponse, setAdminResponse] = useState<ApiResultViewModel | null>(null);
-  const isAuthenticated = authContext.isAuthenticated;
-  const isLoading = authContext.isLoading;
-  const authError = authContext.error;
+  const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const isAuthenticated = useIsAuthenticated();
+
+  // Debug logging
+  console.log('🎯 App Component Render:', {
+    accounts: accounts.length,
+    inProgress,
+    isAuthenticated,
+    account: account?.username || account?.name,
+    email: idTokenClaims.email,
+    roles: idTokenClaims.roles,
+  });
 
   const groups = useMemo(
-    () => ((authContext.user?.profile['cognito:groups'] as string[] | undefined) ?? []),
-    [authContext.user?.profile],
+    () => ((idTokenClaims.roles as string[] | undefined) ?? []),
+    [idTokenClaims],
   );
 
-  const userEmail = useMemo(() => authContext.user?.profile.email || '', [authContext.user?.profile.email]);
+  const userEmail = useMemo(() => String(idTokenClaims.email || ''), [idTokenClaims]);
 
   const userName = useMemo(() => {
     const emailLocalPart = userEmail.includes('@') ? userEmail.split('@')[0] : userEmail;
 
     return (
       emailLocalPart ||
-      String(authContext.user?.profile.preferred_username || authContext.user?.profile.name || 'User')
+      String(account?.name || account?.username || 'User')
     );
-  }, [authContext.user?.profile.name, authContext.user?.profile.preferred_username, userEmail]);
+  }, [account?.name, account?.username, userEmail]);
 
   const groupsLabel = useMemo(
-    () => (groups.length > 0 ? groups.join(', ') : 'No groups assigned'),
+    () => (groups.length > 0 ? groups.join(', ') : 'No roles assigned'),
     [groups],
   );
   const tierLabel = useMemo(
-    () => String(authContext.user?.profile['custom:tier'] || 'No tier claim'),
-    [authContext.user?.profile],
+    () => String(idTokenClaims.tier || idTokenClaims['custom:tier'] || 'No tier claim'),
+    [idTokenClaims],
   );
 
   const profileLabel = userEmail || userName;
 
   const handleSignOut = useCallback(() => {
-    authContext.removeUser();
-    window.location.href = `${COGNITO_HOSTED_UI_BASE_URL}/logout?client_id=${COGNITO_APP_CLIENT_ID}&logout_uri=${encodeURIComponent(COGNITO_POST_LOGOUT_REDIRECT_URI)}`;
-  }, [authContext]);
+    void instance.logoutRedirect();
+  }, [instance]);
 
   const handleSignIn = useCallback(() => {
-    authContext.signinRedirect();
-  }, [authContext]);
+    void instance.loginRedirect(loginRequest);
+  }, [instance]);
 
   const fetchProtectedEndpoint = useCallback(async (path: ProtectedApiPath, onResult: (value: ApiResultViewModel) => void) => {
-    if (!authContext.user?.access_token) {
+    if (!account) {
       onResult({ rawText: 'No access token available. Please sign in again.' });
       return;
     }
 
+    setIsLoading(true);
+    setAuthError(null);
+
     try {
+      const tokenResponse = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account,
+      });
+
       const response = await fetch(`${BACKEND_API_BASE_URL}${path}`, {
         headers: {
-          Authorization: `Bearer ${authContext.user.access_token}`,
+          Authorization: `Bearer ${tokenResponse.accessToken}`,
         },
       });
 
@@ -98,8 +115,11 @@ function App() {
       });
     } catch (error) {
       onResult({ rawText: error instanceof Error ? error.message : 'Unknown error' });
+      setAuthError(error instanceof Error ? error.message : 'Authentication error');
+    } finally {
+      setIsLoading(false);
     }
-  }, [authContext.user?.access_token]);
+  }, [account, instance]);
 
   const handleProfileApiRequest = useCallback(() => {
     void fetchProtectedEndpoint('/api/profile', setProfileResponse);
@@ -123,13 +143,13 @@ function App() {
             onSignOut={handleSignOut}
           />
 
-          {isLoading && <LoadingPanel />}
+          {(isLoading || inProgress !== 'none') && <LoadingPanel />}
 
-          {authError && <ErrorPanel message={authError.message} />}
+          {authError && <ErrorPanel message={authError} />}
 
-          {!isLoading && !authError && !isAuthenticated && <SignInPanel onSignIn={handleSignIn} />}
+          {!isLoading && inProgress === 'none' && !authError && !isAuthenticated && <SignInPanel onSignIn={handleSignIn} />}
 
-          {!isLoading && !authError && isAuthenticated && (
+          {!isLoading && inProgress === 'none' && !authError && isAuthenticated && (
             <>
               <SummaryCards
                 profileLabel={profileLabel}

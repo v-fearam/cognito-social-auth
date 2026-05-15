@@ -439,5 +439,7 @@ References:
     https://learn.microsoft.com/en-us/graph/api/user-get?view=graph-rest-1.0
 - Microsoft Graph - Update user (manage extensions and associated data):
     https://learn.microsoft.com/en-us/graph/api/user-update?view=graph-rest-1.0
+- ADO work item (extension payload details):
+    https://dev.azure.com/msft-skilling/Content/_workitems/edit/573454
 
 
